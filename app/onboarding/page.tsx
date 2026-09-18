@@ -285,6 +285,10 @@ function OnboardingPageInner() {
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [verifyError, setVerifyError] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
+    // The code itself, when the server is in its mail dry run (development
+    // only; see isMailDryRun). Shown on the code screen so the flow can be
+    // walked with no inbox. Never set by a production server.
+    const [devCode, setDevCode] = useState<string | null>(null);
     /**
      * Whether the signed-in account still owes the code at the end.
      *
@@ -545,6 +549,7 @@ function OnboardingPageInner() {
                 await signInWithCustomToken(auth, data.token);
             }
             setPendingVerification(true);
+            setDevCode(typeof data.devCode === 'string' ? data.devCode : null);
             capture(data.resumed ? 'signup_resumed' : 'signup_started', { source: signupSource });
 
             // Correcting an address goes straight back to the code, which is
@@ -650,9 +655,11 @@ function OnboardingPageInner() {
                 method: 'POST',
                 body: JSON.stringify({ email, locale: language }),
             });
+            const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
                 if (data.error !== 'cooldown') setVerifyError(t('onboarding.verify.errors.resend_failed'));
+            } else if (typeof data.devCode === 'string') {
+                setDevCode(data.devCode);
             }
         } catch {
             setVerifyError(t('onboarding.verify.errors.resend_failed'));
@@ -1631,6 +1638,7 @@ function OnboardingPageInner() {
                             email={email}
                             isSubmitting={isVerifying}
                             error={verifyError}
+                            devCode={devCode}
                             onVerify={handleVerify}
                             onResend={handleResendCode}
                             onChangeEmail={() => {

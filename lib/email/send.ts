@@ -93,7 +93,24 @@ export async function verifyMailer(): Promise<{ ok: boolean; error?: string }> {
     }
 }
 
+/**
+ * True when mail is logged instead of sent: EMAIL_DRY_RUN=1 in .env.local.
+ *
+ * For walking the onboarding flow on a laptop without a real inbox. The
+ * production check is deliberate: a dry run in production would be a site
+ * that silently sends nothing, so the variable is ignored there whatever it
+ * says.
+ */
+export function isMailDryRun(): boolean {
+    return process.env.NODE_ENV !== "production" && process.env.EMAIL_DRY_RUN === "1";
+}
+
 export async function sendMail({ to, subject, html, text, replyTo, fromName }: SendMailOptions): Promise<void> {
+    if (isMailDryRun()) {
+        console.info(`[mail] DRY RUN, not sent. To: ${to} | Subject: ${subject}\n${text}`);
+        return;
+    }
+
     if (!process.env.SMTP_PASS) {
         throw new Error("SMTP_PASS is not configured, so no email can be sent.");
     }

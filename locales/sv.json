@@ -2056,7 +2056,8 @@
         "locked": "För många försök. Skicka en ny kod och försök igen.",
         "failed": "Vi kunde inte kontrollera koden just nu. Försök igen.",
         "resend_failed": "Vi kunde inte skicka en ny kod. Försök igen om en stund."
-      }
+      },
+      "dev_code": "Test mode: no email was sent. Your code is {code}."
     },
     "auth": {
       "title": "Säkra din plats",

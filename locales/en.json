@@ -2056,7 +2056,8 @@
         "locked": "Too many tries. Send a new code and try again.",
         "failed": "We couldn't check the code just now. Please try again.",
         "resend_failed": "We couldn't send a new code. Please try again in a moment."
-      }
+      },
+      "dev_code": "Test mode: no email was sent. Your code is {code}."
     },
     "auth": {
       "title": "Secure your path",

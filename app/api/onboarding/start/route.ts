@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { rateLimitGuard } from "@/lib/rateLimit";
-import { sendMail } from "@/lib/email/send";
+import { sendMail, isMailDryRun } from "@/lib/email/send";
 import { verificationCodeEmail } from "@/lib/email/templates/verificationCode";
 import { resolveLocale } from "@/lib/email/locale";
 import { getCopyOverrides } from "@/lib/siteCopy";
@@ -129,7 +129,8 @@ export async function POST(request: Request) {
     // Without mail there is no code, and without a code the account can never
     // be finished. Better to refuse the step than to create accounts nobody
     // can verify. Development still gets through: the code is logged instead.
-    const canMail = Boolean(process.env.SMTP_PASS);
+    const dryRun = isMailDryRun();
+    const canMail = Boolean(process.env.SMTP_PASS) && !dryRun;
     if (!canMail && process.env.NODE_ENV === "production") {
         console.error("[onboarding/start] SMTP_PASS is not set; refusing to create an account that cannot be verified.");
         return NextResponse.json({ error: "mail-unavailable" }, { status: 503 });
@@ -269,5 +270,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "token-failed" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, uid, token, resumed });
+    return NextResponse.json({
+        success: true,
+        uid,
+        token,
+        resumed,
+        // Only ever in a dry run, which only ever exists outside production
+        // (isMailDryRun): the code that would have been mailed, so the flow
+        // can be walked on a laptop with no inbox. The screen shows it.
+        ...(dryRun ? { devCode: issued.code } : {}),
+    });
 }

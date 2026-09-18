@@ -24,10 +24,12 @@ const CODE_LENGTH = 6;
 // double-tapping can't fire two mails, short enough not to strand anyone.
 const RESEND_COOLDOWN_S = 30;
 
-export default function OtpVerify({ email, isSubmitting = false, error = '', onVerify, onResend, onChangeEmail }: {
+export default function OtpVerify({ email, isSubmitting = false, error = '', devCode = null, onVerify, onResend, onChangeEmail }: {
     email: string;
     isSubmitting?: boolean;
     error?: string;
+    /** Development only: the code the server would have mailed, shown under the boxes. */
+    devCode?: string | null;
     onVerify: (code: string) => void;
     onResend: () => void;
     /** Back to the email step — the address is wrong more often than the code. */
@@ -183,6 +185,12 @@ export default function OtpVerify({ email, isSubmitting = false, error = '', onV
                         />
                     ))}
                 </div>
+
+                {devCode && (
+                    <p className="rounded-xl border border-dashed border-stone-400/60 px-3 py-2 text-center text-[12px] font-medium text-stone-600">
+                        {t('onboarding.verify.dev_code').replace('{code}', devCode)}
+                    </p>
+                )}
 
                 {error && (
                     <div className="flex items-center justify-center gap-2 text-xs font-medium text-red-700">
