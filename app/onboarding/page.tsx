@@ -747,6 +747,17 @@ function OnboardingPageInner() {
     // so SSR and hydration agree on the markup.
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
+
+        // Development only: `?fresh=1` signs the browser out on arrival so the
+        // whole flow can be walked from zero, email step and code included.
+        // A signed-in visitor skips both by design, which is right on the
+        // live site and a nuisance when every run of the design starts from
+        // a session the last run left behind. Ignored in production.
+        if (params.get('fresh') && process.env.NODE_ENV !== 'production') {
+            try { localStorage.removeItem('playwright_mock_user'); } catch { /* storage off */ }
+            void signOut(auth).catch(() => { /* nobody was signed in */ });
+        }
+
         const step = params.get('step');
         if (step && ADDRESSABLE_STEPS.has(step)) setCurrentStep(step);
         if (params.get('flow') === 'waitlist' && !SIGNUPS_OPEN) {
