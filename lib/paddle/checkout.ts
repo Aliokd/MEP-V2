@@ -131,6 +131,16 @@ export async function openCheckout({ priceId, uid, email, locale, successUrl, in
         settings: {
             theme: 'light',
             locale: PADDLE_LOCALES[locale ?? 'en'] ?? 'en',
+            // Email, country and card on one screen. The multi-page default
+            // put a "Continue" between the address and the card, a second
+            // step inside a section that already sits under the plan.
+            variant: 'one-page',
+            // Neither is offered to a songwriter starting a trial: there are
+            // no discount codes in the catalog, and VAT numbers belong to
+            // businesses, which Max sells to from inside the product instead.
+            // The two links sat above the form and read as things to do.
+            showAddDiscounts: false,
+            showAddTaxId: false,
             // The address is the account's, taken at the email step. Letting
             // the checkout swap it for another would create a Paddle customer
             // under one address for a Veinote account under a different one,
