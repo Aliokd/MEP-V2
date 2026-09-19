@@ -99,11 +99,27 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
 const MAX_TRACKED_CLIENTS = 5_000;
 const buckets = new Map<string, number[]>();
 
-/** Best-effort client identity. Behind Firebase Hosting / Cloud Run the original
- *  address is the first entry of x-forwarded-for; the rest is proxy chain. */
+/**
+ * Best-effort client identity.
+ *
+ * Every proxy on the way appends the address it saw to x-forwarded-for, so
+ * the trustworthy entries are at the END of the list; anything the client
+ * sent itself sits at the front. Reading the first entry, as this once did,
+ * let a caller pick its own bucket with a random header per request and
+ * walk straight past every limit here. Behind Firebase Hosting a request
+ * reaches Cloud Run with two appended hops (the Hosting CDN, then Google's
+ * front end), so the client is the second entry from the end; hit on the
+ * run.app address directly there is one hop, and the client is the last.
+ */
 export function clientKey(request: Request): string {
     const forwarded = request.headers.get('x-forwarded-for');
-    if (forwarded) return forwarded.split(',')[0].trim();
+    if (forwarded) {
+        const hops = forwarded.split(',').map((s) => s.trim()).filter(Boolean);
+        const host = (request.headers.get('host') ?? '').toLowerCase();
+        const trusted = host.endsWith('.run.app') ? 1 : 2;
+        const client = hops[Math.max(0, hops.length - trusted)];
+        if (client) return client;
+    }
     return request.headers.get('x-real-ip')?.trim() || 'unknown';
 }
 

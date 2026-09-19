@@ -7,7 +7,7 @@ import { verificationCodeEmail } from "@/lib/email/templates/verificationCode";
 import { resolveLocale } from "@/lib/email/locale";
 import { getCopyOverrides } from "@/lib/siteCopy";
 import { newUserProfile, nameFromEmail } from "@/lib/userProfileShape";
-import { issueCode, clearCode, CODE_TTL_MINUTES } from "@/lib/onboardingCodes";
+import { issueCode, clearCode, isPendingOnboarding, CODE_TTL_MINUTES } from "@/lib/onboardingCodes";
 import { SIGNUPS_OPEN } from "@/lib/uiFlags";
 
 export const runtime = "nodejs";
@@ -74,15 +74,14 @@ function sanitizeSource(raw: unknown): string | null {
 }
 
 /**
- * Whether an existing account is one this flow made and has not finished.
- * Only such an account may be resumed by anyone who types its address; every
- * other kind belongs to someone who already signed in as it.
+ * Whether a subscription or Paddle customer is already attached to the
+ * account. Such an account is worth taking over, so its address can no
+ * longer be moved before the code has proven the inbox.
  */
-async function isPendingOnboarding(uid: string, emailVerified: boolean): Promise<boolean> {
-    if (emailVerified) return false;
+async function hasBilling(uid: string): Promise<boolean> {
     const snap = await adminDb.doc(`users/${uid}`).get();
-    const signup = snap.data()?.signup;
-    return signup?.method === "onboarding" && !signup?.verifiedAt;
+    const billing = snap.data()?.billing;
+    return Boolean(billing?.paddleCustomerId || billing?.paddleSubscriptionId);
 }
 
 /** Firebase Admin errors carry their meaning in `code`; everything else has none. */
@@ -151,6 +150,12 @@ export async function POST(request: Request) {
         if (callerUid) {
             const caller = await adminAuth.getUser(callerUid);
             if (caller.email?.toLowerCase() !== email && (await isPendingOnboarding(callerUid, caller.emailVerified))) {
+                // Once a checkout has happened the address is the one thing
+                // that ties the paid account to its owner; it moves only after
+                // the code has been typed, through the sign-in page's settings.
+                if (await hasBilling(callerUid)) {
+                    return NextResponse.json({ error: "address-locked" }, { status: 409 });
+                }
                 await adminAuth.updateUser(callerUid, { email, emailVerified: false });
                 await adminDb.doc(`users/${callerUid}`).set({ email }, { merge: true });
                 uid = callerUid;
@@ -171,8 +176,10 @@ export async function POST(request: Request) {
                 uid = existing.uid;
                 resumed = true;
                 // The answers may be better this time round; the first pass
-                // through the quiz is not more true than the second.
-                if (Object.keys(answers).length) {
+                // through the quiz is not more true than the second. Only from
+                // the browser that holds the account, though: anyone can type
+                // an address, and the doc is not theirs to rewrite.
+                if (callerUid === uid && Object.keys(answers).length) {
                     await adminDb.doc(`users/${uid}`).set({ answers }, { merge: true });
                 }
             } else {
@@ -251,11 +258,24 @@ export async function POST(request: Request) {
         console.info(`[onboarding/start] (dev, no SMTP) verification code for ${email}: ${issued.code}`);
     }
 
+    // A pending account resumed by a browser that does not already hold it
+    // gets no session from this route. Anyone can type an address; only the
+    // inbox can produce the code. The code screen comes first for them, and
+    // /api/onboarding/verify, given the address and the code, hands out the
+    // token instead. Without this, whoever typed the address after its owner
+    // had paid was signed in as the paid account.
+    if (resumed && callerUid !== uid) {
+        return NextResponse.json({
+            success: true,
+            resumed: true,
+            verifyFirst: true,
+            ...(dryRun ? { devCode: issued.code } : {}),
+        });
+    }
+
     // The custom token signs the browser in as this account for the rest of
     // the flow. Short-lived by Firebase's own rules (one hour), and the verify
-    // route revokes every session older than itself once the code is in, so
-    // a token handed out here for an address someone else then claims does
-    // not outlive their claim.
+    // route revokes every session older than itself once the code is in.
     let token: string;
     try {
         token = await adminAuth.createCustomToken(uid);

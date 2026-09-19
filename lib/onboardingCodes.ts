@@ -78,6 +78,19 @@ export async function issueCode(uid: string, email: string): Promise<IssueResult
 }
 
 /**
+ * Whether an account is one the onboarding flow made and has not finished:
+ * unverified in Auth, and marked as an onboarding signup with no verifiedAt
+ * on its user doc. Only such an account may be resumed by typing its address
+ * again; every other kind belongs to someone who already signed in as it.
+ */
+export async function isPendingOnboarding(uid: string, emailVerified: boolean): Promise<boolean> {
+    if (emailVerified) return false;
+    const snap = await adminDb.doc(`users/${uid}`).get();
+    const signup = snap.data()?.signup;
+    return signup?.method === "onboarding" && !signup?.verifiedAt;
+}
+
+/**
  * Forgets a code that never reached anyone. Called when the email fails to
  * send: the cooldown exists to stop two live codes landing in one inbox, and
  * a code that landed nowhere must not hold the next attempt to that rule.
@@ -98,13 +111,22 @@ export type CheckResult =
  * (send a new one) and telling the two apart would only say whether an
  * account is mid-signup.
  */
-export async function checkCode(uid: string, code: string): Promise<CheckResult> {
+export async function checkCode(uid: string, code: string, email?: string | null): Promise<CheckResult> {
     const ref = adminDb.collection(COLLECTION).doc(uid);
     const snap = await ref.get();
     const stored = snap.data() as CodeDoc | undefined;
 
     if (!stored || Date.parse(stored.expiresAt) < Date.now()) {
         if (stored) await ref.delete();
+        return { ok: false, reason: "expired" };
+    }
+
+    // A code proves possession of the inbox it was sent to. If the account's
+    // address moved after the code went out, the code no longer speaks for the
+    // address on the account, and is treated as expired: the fix (send a new
+    // one, to the current address) is the same.
+    if (email && stored.email.toLowerCase() !== email.toLowerCase()) {
+        await ref.delete();
         return { ok: false, reason: "expired" };
     }
 

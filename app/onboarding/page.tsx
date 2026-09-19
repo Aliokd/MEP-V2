@@ -232,6 +232,12 @@ function OnboardingPageInner() {
      * Google sign-in, or verified on an earlier visit, is not asked twice.
      */
     const [pendingVerification, setPendingVerification] = useState(false);
+    /**
+     * A pending account resumed from a browser that never held it. The start
+     * route sends the code but no session for those, so the code comes first
+     * and /api/onboarding/verify, given address and code, is what signs in.
+     */
+    const [resumeVerify, setResumeVerify] = useState(false);
     // A refusal on the email step that needs more than a shake: the address
     // already has an account, and the way in is the sign-in page.
     const [emailErrorAction, setEmailErrorAction] = useState<{ label: string; href: string } | null>(null);
@@ -499,6 +505,20 @@ function OnboardingPageInner() {
                 return;
             }
 
+            // A pending account this browser never held: no session yet, the
+            // code proves the inbox first. The rest of the flow follows the code.
+            if (data.verifyFirst) {
+                setResumeVerify(true);
+                setIsChangingEmail(false);
+                setPendingVerification(true);
+                setDevCode(typeof data.devCode === 'string' ? data.devCode : null);
+                setVerifyError('');
+                capture('signup_resumed', { source: signupSource, verifyFirst: true });
+                setCurrentStep(STEPS.VERIFY);
+                return;
+            }
+            setResumeVerify(false);
+
             // Signed in as the new account from here on. Skipped when the
             // browser already holds it (correcting the address on a pending
             // account), since the session is the same one.
@@ -561,9 +581,11 @@ function OnboardingPageInner() {
         setVerifyError('');
         setIsVerifying(true);
         try {
+            // Without a session the address names the account; with one the
+            // token does, and the address is not sent.
             const res = await authedFetch('/api/onboarding/verify', {
                 method: 'POST',
-                body: JSON.stringify({ code }),
+                body: JSON.stringify(resumeVerify ? { email, code } : { code }),
             });
             const data = await res.json().catch(() => ({}));
 
@@ -580,7 +602,7 @@ function OnboardingPageInner() {
 
             if (data.token) await signInWithCustomToken(auth, data.token);
             setPendingVerification(false);
-            capture('signup_verified', { source: signupSource });
+            capture('signup_verified', { source: signupSource, resumed: resumeVerify });
 
             // The welcome mail goes out now, not at creation: an address that
             // was never confirmed should not be written to. The route takes
@@ -590,6 +612,14 @@ function OnboardingPageInner() {
                 body: JSON.stringify({ locale: language }),
             }).catch((err) => console.error('Failed to trigger welcome email:', err));
 
+            // A resumed account has only just been signed in, and still has
+            // the plan step ahead of it unless a checkout already happened on
+            // an earlier visit, in which case it is finished.
+            if (resumeVerify) {
+                setResumeVerify(false);
+                setCurrentStep(data.hasPlan ? STEPS.WELCOME : STEPS.VERDICT);
+                return;
+            }
             setCurrentStep(STEPS.WELCOME);
         } catch (err) {
             console.error('Verification failed:', err);

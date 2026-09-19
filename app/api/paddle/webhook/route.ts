@@ -47,7 +47,19 @@ interface SubscriptionLike {
 async function resolveUid(sub: SubscriptionLike): Promise<string | null> {
     const custom = sub.customData as { uid?: unknown } | null;
     if (custom && typeof custom.uid === "string" && custom.uid) {
-        return custom.uid;
+        // `customData.uid` is set by the browser that opened the checkout,
+        // with the public client token, so it is a claim and not a fact.
+        // It is honoured only for an account that has no Paddle customer
+        // yet, or whose customer is the one on this subscription: a checkout
+        // opened with someone else's uid must not rewrite their plan.
+        const claimed = await adminDb.doc(`users/${custom.uid}`).get();
+        if (!claimed.exists) {
+            console.warn(`Paddle webhook: customData.uid ${custom.uid} has no user doc; ignoring the claim`);
+        } else {
+            const owned = claimed.data()?.billing?.paddleCustomerId;
+            if (!owned || owned === sub.customerId) return custom.uid;
+            console.warn(`Paddle webhook: subscription ${sub.id} (customer ${sub.customerId}) claims uid ${custom.uid}, which belongs to customer ${owned}; ignoring the claim`);
+        }
     }
 
     if (!sub.customerId) return null;
