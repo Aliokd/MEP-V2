@@ -14,6 +14,12 @@ export const dynamic = "force-dynamic";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_MESSAGE = 600;
 
+/** "jo***@example.com": enough to recognise one's own inbox, not enough to copy. */
+function maskEmail(address: string): string {
+    const [local, domain] = address.split("@");
+    return `${local.slice(0, 2)}***@${domain}`;
+}
+
 /**
  * "Take my ticket", server side.
  *
@@ -60,6 +66,17 @@ export async function POST(request: Request) {
     const ref = adminDb.collection(COLLECTION).doc(slug);
     const claimedAt = new Date().toISOString();
 
+    // The founders usually know the address of the person a ticket names.
+    // When they do, the code goes there and only there, whatever the page
+    // was given: the wall is public, and a ticket must not be collectable by
+    // whoever reaches its page first. Only a ticket without an address on
+    // file trusts the one typed, and the console shows who claimed it.
+    const onFile = (await getTicket(slug))?.email?.trim().toLowerCase() || null;
+    const recipient = onFile ?? email;
+    if (onFile && onFile !== email) {
+        console.warn(`[golden/claim] ${slug}: typed address differs from the one on file; sending to the one on file`);
+    }
+
     // The claim is taken inside a transaction so the status check and the
     // write are one step; a ticket that is not open when the write lands is
     // not written.
@@ -73,7 +90,7 @@ export async function POST(request: Request) {
             if (status !== "open") return "taken" as const;
             tx.update(ref, {
                 status: "claimed",
-                claim: { email, message: message || null, locale, claimedAt },
+                claim: { email: recipient, message: message || null, locale, claimedAt, typedEmail: email },
                 updatedAt: claimedAt,
             });
             return "claimed" as const;
@@ -105,7 +122,7 @@ export async function POST(request: Request) {
 
     if (canMail || dryRun) {
         try {
-            await sendMail({ to: email, subject, html, text });
+            await sendMail({ to: recipient, subject, html, text });
         } catch (error) {
             // The claim stands: the console shows it, and the ticket can be
             // resent from there. Losing the claim because the relay hiccuped
@@ -114,12 +131,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "mail-failed", claimed: true }, { status: 502 });
         }
     } else {
-        console.info(`[golden/claim] (dev, no SMTP) golden code for ${email}: ${ticket.code}`);
+        console.info(`[golden/claim] (dev, no SMTP) golden code for ${recipient}: ${ticket.code}`);
     }
 
     return NextResponse.json({
         success: true,
-        email,
+        // The address the code went to, masked when it was not the one typed:
+        // the page says where to look without handing out the address.
+        email: onFile && onFile !== email ? maskEmail(onFile) : email,
         // Only ever in a dry run, which only exists outside production: the
         // code that would have been mailed, so the flow can be walked with no
         // inbox. The page shows it.

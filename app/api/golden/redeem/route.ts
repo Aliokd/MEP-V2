@@ -45,6 +45,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "code-invalid" }, { status: 400 });
     }
 
+    // The code was mailed to one address; the account redeeming it must be
+    // that address. A code seen over someone's shoulder, or forwarded, is
+    // worth nothing to an account with a different email.
+    const claimedFor = (ticket.claim?.email || ticket.email || "").trim().toLowerCase();
+    const account = await adminAuth.getUser(uid).catch(() => null);
+    const accountEmail = account?.email?.toLowerCase() ?? "";
+    if (!claimedFor || !accountEmail || claimedFor !== accountEmail) {
+        console.warn(`[golden/redeem] ${ticket.slug}: account ${uid} (${accountEmail || "no email"}) is not the claimed address`);
+        return NextResponse.json({ error: "code-invalid" }, { status: 400 });
+    }
+
     // The same account pressing again (a reload mid-flow) is a success, not
     // a refusal: the grant it asks for is already in place.
     if (ticket.status === "redeemed") {

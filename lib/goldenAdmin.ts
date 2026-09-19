@@ -44,6 +44,13 @@ export function cleanEmail(value: unknown): string | null {
  * where a code is copied to resend by hand or read out over a call, which is
  * the reason the code is stored as written.
  */
-export function consoleView(t: GoldenTicket) {
-    return { ...t, pagePath: `/golden/${t.slug}` };
+/**
+ * What the console shows. The code itself is a lifetime grant, so it is
+ * only included for a role that could also mint one; a support login that
+ * can see the wall cannot walk away with a hundred lifetime accounts.
+ */
+export function consoleView(t: GoldenTicket, { withCode = true }: { withCode?: boolean } = {}) {
+    const view: Omit<GoldenTicket, "code"> & { code?: string; pagePath: string } = { ...t, pagePath: `/golden/${t.slug}` };
+    if (!withCode) delete view.code;
+    return view;
 }

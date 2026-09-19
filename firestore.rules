@@ -141,7 +141,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && request.auth.uid == userId &&
         !changedKeys().hasAny([
           "tier", "billing", "sanction", "suspendedUntil", "bannedAt",
-          "email", "uid", "createdAt", "signup", "createdByAdmin"
+          "email", "uid", "createdAt", "signup", "createdByAdmin", "golden"
         ]);
       allow delete: if false;
 

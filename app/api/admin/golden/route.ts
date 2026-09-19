@@ -12,16 +12,18 @@ import {
 } from "@/lib/goldenTickets";
 import { cleanEmail, cleanPhotoUrl, cleanText, consoleView, MAX_NAME, MAX_NOTE, MAX_TAGLINE } from "@/lib/goldenAdmin";
 import { GOLDEN_INVITES_PER_TICKET, GOLDEN_TICKETS_TOTAL } from "@/lib/uiFlags";
+import { roleHasPermission } from "@/lib/admin/roles";
 
 export const dynamic = "force-dynamic";
 
 /** The wall, oldest number first, with the counts the page header shows. */
-export const GET = withAdmin("golden.read", async () => {
+export const GET = withAdmin("golden.read", async (_request, admin) => {
     const tickets = await listTickets();
     const counts = { open: 0, claimed: 0, redeemed: 0, revoked: 0 };
     tickets.forEach((t) => { counts[t.status] += 1; });
+    const withCode = roleHasPermission(admin.role, "golden.write");
     return NextResponse.json({
-        tickets: tickets.map(consoleView),
+        tickets: tickets.map((t) => consoleView(t, { withCode })),
         counts,
         total: GOLDEN_TICKETS_TOTAL,
         invitesPerTicket: GOLDEN_INVITES_PER_TICKET,
