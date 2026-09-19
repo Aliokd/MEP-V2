@@ -10,8 +10,7 @@
     "frameworksBackend": {
       "region": "us-central1",
       "timeoutSeconds": 120,
-      "memory": "512MiB",
-      "minInstances": 1
+      "memory": "512MiB"
     },
     "headers": [
       {
