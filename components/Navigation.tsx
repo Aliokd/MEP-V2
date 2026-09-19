@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { User, LogOut, ArrowRight } from 'lucide-react';
 import Logo from './Logo';
 import { useAuth } from '@/context/AuthContext';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseAuth';
 import { signOut } from 'firebase/auth';
 import { splitLocale, localizePath } from '@/lib/i18n';
 import { signupPath } from '@/lib/uiFlags';

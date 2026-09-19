@@ -1,4 +1,4 @@
-import posthog from 'posthog-js';
+import type { PostHog } from 'posthog-js';
 
 /**
  * PostHog product analytics, in two tiers.
@@ -44,6 +44,29 @@ export const isPostHogConfigured = Boolean(POSTHOG_KEY && POSTHOG_HOST);
 /** React 18 runs effects twice in dev; init is not idempotent, so gate it. */
 let initialised = false;
 /**
+ * The SDK is not part of the initial bundle: posthog-js is a quarter of a
+ * megabyte, and a marketing visitor should not download it before the page
+ * they came for. initPostHog() fetches it, and until that resolves every call
+ * below is queued and replayed in order once init() has run, so nothing that
+ * happens in the first few hundred milliseconds (a funnel step, a consent
+ * upgrade, an identify) is lost or applied out of sequence. `client` is set
+ * only after init(), which is what makes the queue safe to drain.
+ */
+let client: PostHog | null = null;
+let loadFailed = false;
+let pending: Array<(p: PostHog) => void> = [];
+/** Enough for anything a page does before the SDK arrives; a runaway loop is not it. */
+const MAX_PENDING = 200;
+
+function run(op: (p: PostHog) => void): void {
+    if (client) {
+        op(client);
+        return;
+    }
+    if (loadFailed) return;
+    if (pending.length < MAX_PENDING) pending.push(op);
+}
+/**
  * The two consent-gated tiers, tracked separately because they are now
  * separately answerable: someone can agree to be counted and refuse to be
  * recorded. Replay still implies persistence — a recording is written to the
@@ -57,6 +80,24 @@ export function initPostHog(): void {
     if (!isPostHogConfigured || initialised || typeof window === 'undefined') return;
     initialised = true;
 
+    import('posthog-js')
+        .then(({ default: posthog }) => {
+            initClient(posthog);
+            client = posthog;
+            const queued = pending;
+            pending = [];
+            queued.forEach((op) => op(posthog));
+        })
+        .catch((err) => {
+            // Ad blockers and flaky networks land here. Analytics is not worth
+            // a retry loop: this page load simply goes uncounted.
+            loadFailed = true;
+            pending = [];
+            console.error('PostHog failed to load:', err);
+        });
+}
+
+function initClient(posthog: PostHog): void {
     posthog.init(POSTHOG_KEY!, {
         api_host: POSTHOG_HOST!,
         // The anonymous tier's load-bearing line. Never change this default:
@@ -123,11 +164,13 @@ export function initPostHog(): void {
  */
 export function capture(event: string, properties?: Record<string, unknown>): void {
     if (!isPostHogConfigured || !initialised) return;
-    try {
-        posthog.capture(event, properties);
-    } catch (err) {
-        console.error('PostHog capture failed:', err);
-    }
+    run((posthog) => {
+        try {
+            posthog.capture(event, properties);
+        } catch (err) {
+            console.error('PostHog capture failed:', err);
+        }
+    });
 }
 
 /**
@@ -142,11 +185,13 @@ export function capture(event: string, properties?: Record<string, unknown>): vo
 export function enablePersistentTracking(): void {
     if (!isPostHogConfigured || !initialised || persistentTier) return;
     persistentTier = true;
-    try {
-        posthog.set_config({ persistence: 'localStorage+cookie' });
-    } catch (err) {
-        console.error('PostHog persistence upgrade failed:', err);
-    }
+    run((posthog) => {
+        try {
+            posthog.set_config({ persistence: 'localStorage+cookie' });
+        } catch (err) {
+            console.error('PostHog persistence upgrade failed:', err);
+        }
+    });
 }
 
 /**
@@ -162,12 +207,14 @@ export function disablePersistentTracking(): void {
     if (!isPostHogConfigured || !initialised || !persistentTier) return;
     disableSessionReplay();
     persistentTier = false;
-    try {
-        posthog.reset();
-        posthog.set_config({ persistence: 'memory' });
-    } catch (err) {
-        console.error('PostHog downgrade failed:', err);
-    }
+    run((posthog) => {
+        try {
+            posthog.reset();
+            posthog.set_config({ persistence: 'memory' });
+        } catch (err) {
+            console.error('PostHog downgrade failed:', err);
+        }
+    });
 }
 
 /** Session replay, once its own category is allowed. */
@@ -178,23 +225,27 @@ export function enableSessionReplay(): void {
     // has nowhere to persist.
     if (!persistentTier) return;
     replayTier = true;
-    try {
-        posthog.set_config({ disable_session_recording: false });
-        posthog.startSessionRecording();
-    } catch (err) {
-        console.error('PostHog replay start failed:', err);
-    }
+    run((posthog) => {
+        try {
+            posthog.set_config({ disable_session_recording: false });
+            posthog.startSessionRecording();
+        } catch (err) {
+            console.error('PostHog replay start failed:', err);
+        }
+    });
 }
 
 export function disableSessionReplay(): void {
     if (!isPostHogConfigured || !initialised || !replayTier) return;
     replayTier = false;
-    try {
-        posthog.stopSessionRecording();
-        posthog.set_config({ disable_session_recording: true });
-    } catch (err) {
-        console.error('PostHog replay stop failed:', err);
-    }
+    run((posthog) => {
+        try {
+            posthog.stopSessionRecording();
+            posthog.set_config({ disable_session_recording: true });
+        } catch (err) {
+            console.error('PostHog replay stop failed:', err);
+        }
+    });
 }
 
 /**
@@ -208,14 +259,16 @@ export function identifyPostHogUser(
     // Identified tier only. The anonymous tier's promise is that nobody is named
     // to it — an identify before consent would break exactly that.
     if (!isPostHogConfigured || !persistentTier) return;
-    try {
-        posthog.identify(uid, {
-            ...(traits.email ? { email: traits.email } : {}),
-            ...(traits.name ? { name: traits.name } : {}),
-        });
-    } catch (err) {
-        console.error('PostHog identify failed:', err);
-    }
+    run((posthog) => {
+        try {
+            posthog.identify(uid, {
+                ...(traits.email ? { email: traits.email } : {}),
+                ...(traits.name ? { name: traits.name } : {}),
+            });
+        } catch (err) {
+            console.error('PostHog identify failed:', err);
+        }
+    });
 }
 
 /**
@@ -225,9 +278,11 @@ export function identifyPostHogUser(
  */
 export function resetPostHogUser(): void {
     if (!isPostHogConfigured || !persistentTier) return;
-    try {
-        posthog.reset();
-    } catch (err) {
-        console.error('PostHog reset failed:', err);
-    }
+    run((posthog) => {
+        try {
+            posthog.reset();
+        } catch (err) {
+            console.error('PostHog reset failed:', err);
+        }
+    });
 }

@@ -1,45 +1,18 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAnalytics, isSupported } from "firebase/analytics";
+import app, { auth, googleProvider, initFirebaseAnalytics } from "./firebaseAuth";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyDakTEN2xkmYPR6ZAUUq3e1fXojAuY3E7M",
-    authDomain: "mep-v2.firebaseapp.com",
-    projectId: "mep-v2",
-    storageBucket: "mep-v2.firebasestorage.app",
-    messagingSenderId: "828311508339",
-    appId: "1:828311508339:web:720ef081a08fe3d3372106",
-    measurementId: "G-PRRRT1N7LQ"
-};
-
-// Initialize Firebase for Next.js (client-side safe)
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-
-export const auth = getAuth(app);
+/*
+ * The full Firebase surface: app, Auth, Firestore and Storage.
+ *
+ * App and Auth are defined in lib/firebaseAuth.ts and re-exported here so the
+ * code that runs on every page (AuthProvider, Navigation, the homepage) can
+ * import from there without pulling Firestore and Storage into the bundle a
+ * marketing visitor downloads. Same app instance, same Auth singleton, so
+ * importing from either module is interchangeable for the exports they share.
+ */
+export { auth, googleProvider, initFirebaseAnalytics };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const googleProvider = new GoogleAuthProvider();
-
-/**
- * Firebase Analytics (GA4).
- *
- * Deliberately not started on import. It used to be, which meant _ga cookies
- * were set on every page load before anyone saw the consent bar — and nothing
- * in the app ever consumed the result, so it was tracking with no reader.
- * AnalyticsGate calls this only after an explicit "accept all".
- */
-let analyticsPromise: Promise<unknown> | null = null;
-
-export function initFirebaseAnalytics(): Promise<unknown> {
-    if (typeof window === 'undefined') return Promise.resolve(null);
-    if (!analyticsPromise) {
-        analyticsPromise = isSupported()
-            .then(supported => (supported ? getAnalytics(app) : null))
-            .catch(() => null);
-    }
-    return analyticsPromise;
-}
 
 export default app;

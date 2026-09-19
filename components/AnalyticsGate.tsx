@@ -9,7 +9,7 @@ import {
     enableSessionReplay,
     disableSessionReplay,
 } from '@/lib/posthog';
-import { initFirebaseAnalytics } from '@/lib/firebase';
+import { initFirebaseAnalytics } from '@/lib/firebaseAuth';
 import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '@/lib/cookieConsent';
 
 const CLARITY_PROJECT_ID = 'xovh69ah42';

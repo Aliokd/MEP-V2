@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseAuth';
 import { bindLocalStateToAccount } from '@/lib/storage';
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog';
 import { hasReplayConsent } from '@/lib/cookieConsent';

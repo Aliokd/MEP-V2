@@ -10,7 +10,7 @@ import { getFooterPages } from '@/lib/sitePages';
 import { getPublishedFaqs } from '@/lib/faqs';
 import { getCopyOverrides } from '@/lib/siteCopy';
 import { resolveServerLocale } from '@/lib/server-locale';
-import { getServerT } from '@/lib/i18n-content';
+import { getClientMessages, getServerT } from '@/lib/i18n-content';
 import { NONCE_HEADER, SITE_URL, isLocalizedPath, localizePath } from '@/lib/i18n';
 import { headers } from 'next/headers';
 import { pickLocale } from '@/lib/content';
@@ -260,7 +260,14 @@ export default async function RootLayout({
             </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
                 <AnalyticsGate nonce={nonce} />
-                <Providers initialLanguage={language} localeFromUrl={fromUrl} copyOverrides={copyOverrides}>
+                <Providers
+                    initialLanguage={language}
+                    localeFromUrl={fromUrl}
+                    copyOverrides={copyOverrides}
+                    // Swedish/Norwegian strings ride along in the server render;
+                    // the client bundles only English (see LanguageContext).
+                    initialMessages={getClientMessages(language)}
+                >
                     <SitePagesProvider links={footerLinks} faqs={faqs}>
                         <div className="min-h-screen flex flex-col">
                             <Navigation />

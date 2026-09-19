@@ -1,13 +1,51 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import en from '../locales/en.json';
-import no from '../locales/no.json';
-import sv from '../locales/sv.json';
 import { LOCALE_COOKIE, isLanguage, type Language } from '@/lib/i18n';
 
 export type { Language };
-const translations: Record<Language, any> = { en, no, sv };
+
+type Bundle = Record<string, any>;
+
+/*
+ * Only English is compiled into the client bundle: it is the fallback every
+ * lookup can end on, so it has to be there synchronously. Swedish and
+ * Norwegian reach the browser one of two ways, and never as part of the JS
+ * every visitor downloads:
+ * - the root layout passes the active locale's bundle into the server render
+ *   (`initialMessages`), so a /sv page hydrates in Swedish without waiting on
+ *   a download and without a mismatch against the server HTML;
+ * - switching in place (the platform, where the URL carries no locale) fetches
+ *   the new locale's bundle on demand and only then flips the language, so
+ *   `language` and the strings never disagree.
+ * Loaded bundles are kept at module level so a remount never refetches.
+ */
+const loaded: Partial<Record<Language, Bundle>> = { en };
+const inflight: Partial<Record<Language, Promise<Bundle>>> = {};
+const loaders: Record<Language, () => Promise<Bundle>> = {
+  en: () => Promise.resolve(en),
+  no: () => import('../locales/no.json').then((m) => m.default),
+  sv: () => import('../locales/sv.json').then((m) => m.default),
+};
+
+function loadBundle(lang: Language): Promise<Bundle> {
+  const ready = loaded[lang];
+  if (ready) return Promise.resolve(ready);
+  let pending = inflight[lang];
+  if (!pending) {
+    pending = loaders[lang]().then((bundle) => {
+      loaded[lang] = bundle;
+      delete inflight[lang];
+      return bundle;
+    }, (err) => {
+      delete inflight[lang];
+      throw err;
+    });
+    inflight[lang] = pending;
+  }
+  return pending;
+}
 
 interface LanguageContextType {
   language: Language;
@@ -47,6 +85,7 @@ export function LanguageProvider({
   initialLanguage = 'en',
   localeFromUrl = false,
   copyOverrides,
+  initialMessages,
 }: {
   children: React.ReactNode;
   /** Locale resolved on the server, from the URL prefix when there is one. */
@@ -59,8 +98,39 @@ export function LanguageProvider({
    * /about) be edited in the CMS without moving their layouts out of code.
    */
   copyOverrides?: Record<string, Partial<Record<Language, string>>>;
+  /**
+   * The active locale's bundle, when it is not English. Comes from the root
+   * layout's server render so the first paint already speaks the language;
+   * see the note on `loaded` above.
+   */
+  initialMessages?: Bundle;
 }) {
+  // Seeded before the first render on both server and client, so the state
+  // below starts identical on both sides and hydration matches. Idempotent.
+  if (initialMessages && !loaded[initialLanguage]) loaded[initialLanguage] = initialMessages;
+
   const [language, setLanguageState] = useState<Language>(initialLanguage);
+  const [messages, setMessages] = useState<Partial<Record<Language, Bundle>>>(() => ({ ...loaded }));
+  // The language most recently asked for. A slow download for one language
+  // must not overtake a later request for another.
+  const wantedRef = useRef<Language>(initialLanguage);
+
+  // Resolves to the bundle for `lang`, fetching it if this is the first time
+  // it is needed. `onReady` runs only if no later request superseded this one.
+  const withBundle = useCallback((lang: Language, onReady: () => void) => {
+    wantedRef.current = lang;
+    if (loaded[lang]) {
+      onReady();
+      return;
+    }
+    loadBundle(lang).then((bundle) => {
+      if (wantedRef.current !== lang) return;
+      setMessages((prev) => (prev[lang] ? prev : { ...prev, [lang]: bundle }));
+      onReady();
+    }).catch((err) => {
+      console.error(`Failed to load the ${lang} translations:`, err);
+    });
+  }, []);
   // With a locale in the URL the first paint is already correct. Without one
   // (platform/admin) the server rendered English and we must wait for
   // localStorage before switching, or hydration mismatches.
@@ -72,14 +142,19 @@ export function LanguageProvider({
       return;
     }
     const saved = localStorage.getItem(LOCALE_COOKIE);
-    if (isLanguage(saved)) setLanguageState(saved);
-    setResolved(true);
-  }, [localeFromUrl, initialLanguage]);
+    const target = isLanguage(saved) ? saved : initialLanguage;
+    // English until the saved language's bundle is in hand, then both the
+    // language and its strings switch together.
+    withBundle(target, () => {
+      setLanguageState(target);
+      setResolved(true);
+    });
+  }, [localeFromUrl, initialLanguage, withBundle]);
 
   const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
     persist(lang);
-  }, []);
+    withBundle(lang, () => setLanguageState(lang));
+  }, [withBundle]);
 
   const activeLanguage: Language = resolved ? language : 'en';
 
@@ -92,9 +167,9 @@ export function LanguageProvider({
     if (typeof overridden === 'string' && overridden.trim()) return overridden;
 
     const keys = keyPath.split('.');
-    const value = resolve(translations[activeLanguage], keys);
-    return value !== undefined ? value : resolve(translations['en'], keys);
-  }, [activeLanguage, copyOverrides]);
+    const value = resolve(messages[activeLanguage], keys);
+    return value !== undefined ? value : resolve(en, keys);
+  }, [activeLanguage, copyOverrides, messages]);
 
   const t = useCallback((keyPath: string): string => {
     const value = lookup(keyPath);

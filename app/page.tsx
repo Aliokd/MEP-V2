@@ -7,7 +7,7 @@ import { ChevronRight, ArrowUpRight, ArrowRight, MousePointer2, Plus, Menu, Hear
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebaseAuth";
 import { useLanguage } from "@/context/LanguageContext";
 import { useFaqs, useFooterLinks } from "@/context/SitePagesContext";
 import { pickLocale } from "@/lib/content";

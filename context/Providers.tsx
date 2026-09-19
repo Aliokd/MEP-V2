@@ -10,16 +10,24 @@ export function Providers({
     initialLanguage,
     localeFromUrl,
     copyOverrides,
+    initialMessages,
 }: {
     children: React.ReactNode;
     initialLanguage?: Language;
     localeFromUrl?: boolean;
     copyOverrides?: Record<string, Partial<Record<Language, string>>>;
+    /** The active locale's bundle when it is not English; see LanguageContext. */
+    initialMessages?: Record<string, any>;
 }) {
     return (
         <AuthProvider>
             <ThemeProvider>
-                <LanguageProvider initialLanguage={initialLanguage} localeFromUrl={localeFromUrl} copyOverrides={copyOverrides}>
+                <LanguageProvider
+                    initialLanguage={initialLanguage}
+                    localeFromUrl={localeFromUrl}
+                    copyOverrides={copyOverrides}
+                    initialMessages={initialMessages}
+                >
                     {children}
                 </LanguageProvider>
             </ThemeProvider>

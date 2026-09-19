@@ -70,6 +70,16 @@ export function listCopyKeys(namespaces: string[]): { key: string; value: string
     return found;
 }
 
+/**
+ * The bundle the client LanguageProvider needs to hydrate a non-English page.
+ * English is compiled into the client bundle as the fallback, so nothing is
+ * sent for it; Swedish and Norwegian travel in the server render instead of
+ * in the JavaScript every visitor downloads.
+ */
+export function getClientMessages(language: Language): Record<string, any> | undefined {
+    return language === 'en' ? undefined : BUNDLES[language];
+}
+
 export function getServerTList<T = any>(language: Language, keyPath: string): T[] {
     const keys = keyPath.split('.');
     const value = resolve(BUNDLES[language], keys) ?? resolve(BUNDLES.en, keys);
