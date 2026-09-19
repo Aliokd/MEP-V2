@@ -272,8 +272,8 @@ export const PRACTICES: PracticeDefinition[] = [
         progress: 0,
         score: 0,
         time: '0 min',
-        videoUrl: `${VIDEO_DIR}/bridge.compressed.mp4`,
-        posterUrl: `${VIDEO_DIR}/bridge-poster.jpg`,
+        videoUrl: 'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fpractice-bridge.mp4?alt=media',
+        posterUrl: 'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fpractice-bridge-poster.jpg?alt=media',
         available: false,
     },
     {
@@ -289,8 +289,8 @@ export const PRACTICES: PracticeDefinition[] = [
         progress: 0,
         score: 0,
         time: '0 min',
-        videoUrl: `${VIDEO_DIR}/from-idea-to-finished-song.compressed.mp4`,
-        posterUrl: `${VIDEO_DIR}/from-idea-to-finished-song-poster.jpg`,
+        videoUrl: 'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fpractice-from-idea-to-finished-song.mp4?alt=media',
+        posterUrl: 'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fpractice-from-idea-to-finished-song-poster.jpg?alt=media',
         available: false,
     },
 
