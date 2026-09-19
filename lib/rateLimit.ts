@@ -106,22 +106,25 @@ const buckets = new Map<string, number[]>();
  * the trustworthy entries are at the END of the list; anything the client
  * sent itself sits at the front. Reading the first entry, as this once did,
  * let a caller pick its own bucket with a random header per request and
- * walk straight past every limit here. Measured on production 2026-09-19:
- * a request on the run.app address arrives with the client as the LAST entry
- * (one appended hop), and a request through Firebase Hosting arrives with two
- * varying infrastructure addresses appended after the client (the Hosting
- * proxy and Google's front end), so there the client is the third entry from
- * the end. Anything the caller sent sits in front of that and is ignored.
- * `x-veinote-xff-debug` on a request logs the raw list, for the day either
- * hop count changes.
+ * walk straight past every limit here. Measured on production 2026-09-19
+ * (send `x-veinote-xff-debug` to log the raw list):
+ *
+ *   through Firebase Hosting   xff = [client, hosting-egress]   host = fh-…run.app
+ *   on the run.app address     xff = [...caller-sent, client]   host = ssrmepv2-…run.app
+ *
+ * Hosting discards whatever the caller sent and writes the client first, then
+ * Google's front end appends Hosting's own (varying) egress address. Hit
+ * directly, the front end appends the client after anything the caller sent.
+ * So behind Hosting the client is the FIRST entry and elsewhere the LAST; the
+ * Hosting path is recognised by the `fh-` tag Hosting puts on the host.
  */
 export function clientKey(request: Request): string {
     const forwarded = request.headers.get('x-forwarded-for');
     if (forwarded) {
         const hops = forwarded.split(',').map((s) => s.trim()).filter(Boolean);
         const host = (request.headers.get('host') ?? '').toLowerCase();
-        const trusted = host.endsWith('.run.app') ? 1 : 3;
-        const client = hops[Math.max(0, hops.length - trusted)];
+        const viaHosting = host.startsWith('fh-') || !host.endsWith('.run.app');
+        const client = viaHosting ? hops[0] : hops[hops.length - 1];
         if (request.headers.has('x-veinote-xff-debug')) {
             console.info(`[rateLimit] xff=${JSON.stringify(hops)} host=${host} client=${client ?? 'none'}`);
         }
