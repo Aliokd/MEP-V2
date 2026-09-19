@@ -5,7 +5,7 @@ import { AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent, 
 import type { MotionValue } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Undo2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { CUSTOM_PREFIX, customText, isCustom } from './GoalBox';
+import { CUSTOM_PREFIX, customText, isCustom } from '@/lib/onboardingQuestions';
 
 /**
  * The struggle question, asked one card at a time. Swipe right and the struggle

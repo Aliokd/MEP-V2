@@ -12,6 +12,7 @@ import {
     type CraftCounters,
     type WeekScore,
 } from './mindPowerScore';
+import { scoreRegions, type RegionInput, type RegionKey, type RegionScore } from './mindRegions';
 
 /**
  * Time and work in Veinote, bucketed by week — the record behind Mind Power:
@@ -1349,4 +1350,52 @@ export function sumDeviceRecords(records: DeviceRecord[]): OthersRecord {
     }
     out.visits = [...visits].sort();
     return out;
+}
+
+// ---- The six regions ----
+
+/**
+ * What one week fed each part of the mind, from the same record the score
+ * reads. The per-project detail behind the current and previous week is what
+ * tells a new project from a returned-to one and a project where words met a
+ * recording; a closed week without that detail simply scores those as zero.
+ */
+export function weekRegionInput(week: string): RegionInput {
+    const craft = weekCraft(week) ?? { words: 0, recordingSeconds: 0, sections: 0, chapters: 0, practiceSeconds: 0 };
+    const b = readBaselines()[week];
+    let newProjects = 0;
+    let revisitedProjects = 0;
+    let combinedProjects = 0;
+    if (b?.start.projects && b.latest.projects) {
+        for (const [id, now] of Object.entries(b.latest.projects)) {
+            const before = b.start.projects[id];
+            const wordsGained = now.words - (before?.words ?? 0) > 0;
+            const takeGained = now.recordingSeconds - (before?.recordingSeconds ?? 0) > 0;
+            if (!wordsGained && !takeGained) continue;
+            if (before) revisitedProjects++;
+            else newProjects++;
+            if (wordsGained && takeGained) combinedProjects++;
+        }
+    }
+    const health = readHealth();
+    const keys = weekDayKeys(week);
+    const healthyDays = keys.filter(d => Object.values(health[d] || {}).some(n => n > 0)).length;
+    const focusSessions = keys.reduce((sum, d) => sum + (health[d]?.focus || 0), 0);
+    return {
+        words: craft.words,
+        recordingSeconds: craft.recordingSeconds,
+        practiceSeconds: craft.practiceSeconds,
+        newProjects,
+        revisitedProjects,
+        combinedProjects,
+        focusSessions,
+        songsFinished: craft.sections,
+        lessons: craft.chapters,
+        healthyDays,
+        communityActions: weekCommunity(week),
+    };
+}
+
+export function weekRegions(week: string): Record<RegionKey, RegionScore> {
+    return scoreRegions(weekRegionInput(week));
 }

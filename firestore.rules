@@ -751,6 +751,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // The Golden program's hundred tickets (lib/goldenTickets.ts): names,
+    // photos, the code on each and who took it. Read on the server for the
+    // public pages and written only by /api/golden/* and /api/admin/golden/*
+    // through the Admin SDK. Closed to every browser, the same way as the
+    // waitlist above: a code in here opens the product for life.
+    // (No match block on purpose: an unmatched path is denied.)
+
     // Moderation decisions and sanctions — server-written, moderator-readable.
     match /moderation_actions/{actionId} {
       allow read: if isModerator();

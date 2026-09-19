@@ -107,6 +107,31 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         variables: ["inviter", "project", "days"],
     },
     {
+        id: "golden_ticket",
+        label: "Golden ticket",
+        whenSent:
+            "When someone takes their ticket on their Golden program page, and from the Golden program console when an admin resends it. Carries the code.",
+        keyPrefix: "golden_ticket",
+        fields: [
+            "subject",
+            "preheader",
+            "badge",
+            "greeting",
+            "body_1",
+            "code_label",
+            "body_2",
+            "cta",
+            "benefits_title",
+            "benefits",
+            "page_line",
+            "keep",
+            "signoff",
+            "team",
+        ],
+        listFields: ["benefits"],
+        variables: ["name", "code", "invites"],
+    },
+    {
         id: "song_liked",
         label: "Someone liked your song",
         whenSent:

@@ -53,6 +53,12 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // the same `valid: false` for every miss — the ceiling is against sweeping
     // for ids, not against a person reloading the page a few times.
     'collab-invite-lookup': { limit: 30, windowMs: 60_000 },
+    // The Golden program. A claim sends an email and is unauthenticated (the
+    // person has no account yet), so it gets a tight ceiling; the lookup is
+    // read-only and answers every miss the same way; redeem is per account.
+    'golden-claim': { limit: 5, windowMs: 60_000 },
+    'golden-lookup': { limit: 30, windowMs: 60_000 },
+    'golden-redeem': { limit: 10, windowMs: 60_000 },
     // Unauthenticated by design (see app/api/health/ai), so it gets the tightest
     // ceiling of all — enough to debug with, not enough to prod upstreams for free.
     health: { limit: 10, windowMs: 60_000 },
@@ -74,6 +80,9 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // makes a Paddle API call on the caller's behalf; nobody needs more than
     // a few a minute.
     'paddle-billing': { limit: 10, windowMs: 60_000 },
+    // Deleting an account is one press; a handful a minute is already someone
+    // hammering the endpoint rather than a person leaving.
+    'account-delete': { limit: 3, windowMs: 60_000 },
     // The feedback and support forms are public writes that each create an
     // inbox thread and send a mail to support@. They accept anonymous callers
     // by design — a locked-out user still needs a way in — which is exactly

@@ -146,3 +146,23 @@ export function inviteLandingPath(inviteId?: string): string {
     const query = inviteId ? `?from=invite&invite=${encodeURIComponent(inviteId)}` : '?from=invite';
     return `/onboarding${query}`;
 }
+
+/**
+ * The Golden program: a wall of a hundred hand-picked songwriters at /golden,
+ * each with a page and a ticket that opens Veinote for life. The total is the
+ * size of the wall (empty slots are drawn up to it) and the ceiling on how many
+ * tickets the console will mint. The invites figure is what each ticket brings
+ * in once invites exist; until then it is the promise on the page and nothing
+ * more.
+ */
+export const GOLDEN_TICKETS_TOTAL = 100;
+export const GOLDEN_INVITES_PER_TICKET = 5;
+
+/**
+ * Where a golden code is used: the onboarding flow, which reads `?golden=` on
+ * arrival, checks the code with the server and, once the account exists,
+ * redeems it. `?from=golden` is the attribution every other entry point carries.
+ */
+export function goldenLandingPath(code: string): string {
+    return `/onboarding?from=golden&golden=${encodeURIComponent(code)}`;
+}

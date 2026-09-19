@@ -52,13 +52,10 @@ export function fillClipTop(ratio: number): number {
     return (BRAIN_CONTENT.top + BRAIN_CONTENT.height * (1 - r)) * 100;
 }
 
-export type RegionKey =
-    | 'prefrontal'
-    | 'hippocampus'
-    | 'reward'
-    | 'auditory'
-    | 'callosum'
-    | 'language';
+// The region keys belong to the model (lib/mindRegions), which scores them;
+// the geometry only draws them.
+import type { RegionKey } from '@/lib/mindRegions';
+export type { RegionKey };
 
 /** Column and row on the page: left/right of the brain, top/middle/bottom. */
 export const REGION_LAYOUT: Record<RegionKey, { side: 'left' | 'right'; row: 0 | 1 | 2 }> = {

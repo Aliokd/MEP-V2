@@ -13,6 +13,7 @@ interface Billing {
     trialsExpiring7d: number;
     trialsLapsed: number;
     missingPaddleId: number;
+    scheduledCancellations: number;
     attention: { uid: string; email: string | null; tier: string | null; status: string | null; trialEndsAt: string | null; issue: string }[];
     note: string;
 }
@@ -70,7 +71,11 @@ export default function BillingPage() {
                     </Panel>
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <StatTile label="Paying accounts" value={data.paying} hint={`${data.tiers.pro} Pro · ${data.tiers.max} Max`} />
+                        <StatTile
+                            label="Paying accounts"
+                            value={data.paying}
+                            hint={`${data.tiers.pro} Pro · ${data.tiers.max} Max${data.scheduledCancellations > 0 ? ` · ${data.scheduledCancellations} cancelling` : ""}`}
+                        />
                         <StatTile label="Trial → paid" value={`${data.conversionRate}%`} hint="of trials plus paying" />
                         <StatTile label="Trials ending in 7 days" value={data.trialsExpiring7d} hint="conversion window" />
                         <StatTile

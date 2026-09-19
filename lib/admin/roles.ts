@@ -68,6 +68,9 @@ export type AdminPermission =
     | "billing.read"
     // Pre-launch waitlist
     | "waitlist.read"
+    // Golden program: the hundred tickets and who took them
+    | "golden.read"
+    | "golden.write"
     // Ops
     | "ops.read"
     | "ops.write"
@@ -86,6 +89,7 @@ const SUPPORT_PERMISSIONS: AdminPermission[] = [
     "content.read",
     "announcements.read",
     "waitlist.read",
+    "golden.read",
 ];
 
 const MODERATOR_PERMISSIONS: AdminPermission[] = [
@@ -107,6 +111,8 @@ const EDITOR_PERMISSIONS: AdminPermission[] = [
     "community.read",
     "users.read",
     "waitlist.read",
+    "golden.read",
+    "golden.write",
 ];
 
 const ALL_PERMISSIONS: AdminPermission[] = [
@@ -134,6 +140,8 @@ const ALL_PERMISSIONS: AdminPermission[] = [
     "analytics.read",
     "billing.read",
     "waitlist.read",
+    "golden.read",
+    "golden.write",
     "ops.read",
     "ops.write",
     "audit.read",

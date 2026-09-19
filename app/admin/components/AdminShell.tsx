@@ -11,7 +11,7 @@ import {
     LayoutDashboard, Inbox, Users, Flag, MessagesSquare, BookOpen, ClipboardList, FileText,
     Megaphone, Mail, BarChart3, CreditCard, SlidersHorizontal, ScrollText,
     Shield, LogOut, Menu, X, ExternalLink,
-    BadgeCheck,
+    BadgeCheck, Ticket, UserMinus,
 } from "lucide-react";
 import { Spinner } from "./ui";
 
@@ -36,6 +36,7 @@ const NAV: NavGroup[] = [
             { href: "/admin/reports", label: "Reports", icon: Flag, permission: "reports.read" },
             { href: "/admin/community", label: "Community", icon: MessagesSquare, permission: "community.read" },
             { href: "/admin/waiting-list", label: "Waiting list", icon: ClipboardList, permission: "waitlist.read" },
+            { href: "/admin/golden", label: "Golden program", icon: Ticket, permission: "golden.read" },
         ],
     },
     {
@@ -54,6 +55,7 @@ const NAV: NavGroup[] = [
         items: [
             { href: "/admin/analytics", label: "Growth", icon: BarChart3, permission: "analytics.read" },
             { href: "/admin/billing", label: "Billing", icon: CreditCard, permission: "billing.read" },
+            { href: "/admin/offboarding", label: "Offboarding", icon: UserMinus, permission: "users.read" },
         ],
     },
     {

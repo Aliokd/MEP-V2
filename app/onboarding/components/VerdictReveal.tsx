@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { customText, isCustom } from './GoalBox';
+import { customText, isCustom } from '@/lib/onboardingQuestions';
 import { PRIMARY_BUTTON } from './buttonStyles';
 import PlanSections from './PlanSections';
 

@@ -12,7 +12,6 @@ import {
     toggleFocusTimer,
     resetFocusTimer,
     setFocusDuration,
-    formatFocusTime,
     FOCUS_PRESET_MINUTES,
 } from '@/lib/focusTimer';
 import {
@@ -20,18 +19,22 @@ import {
     computeStreak,
     dayStreak,
     weekScore,
+    weekRegions,
     weekKey,
     recordHealthMark,
     WEEKLY_ACTIVITY_EVENT,
     type WeekCell,
 } from '@/lib/weeklyActivity';
 import type { WeekScore } from '@/lib/mindPowerScore';
+import type { RegionKey, RegionScore } from '@/lib/mindRegions';
 import * as btn from '@/app/platform/components/buttonStyles';
 import MindPowerBrain from './components/MindPowerBrain';
 import { BRAIN_SRC, BRAIN_GOLD_SRC, BRAIN_SM_SRC, BRAIN_GOLD_SM_SRC } from './components/brainGeometry';
 import StreakGrid from './components/StreakGrid';
 import StayAhead from './components/StayAhead';
+import FocusDial from './components/FocusDial';
 import Activities from './components/Activities';
+import Goals from './components/Goals';
 
 /**
  * Songwriter's Mind Power, as a page of its own.
@@ -79,12 +82,15 @@ export default function MindPowerPage() {
     const [weeks, setWeeks] = useState<WeekCell[]>([]);
     const [streak, setStreak] = useState({ current: 0, best: 0, days: 0 });
     const [thisWeek, setThisWeek] = useState<WeekScore | null>(null);
+    const [regions, setRegions] = useState<Record<RegionKey, RegionScore> | null>(null);
     useEffect(() => {
         const refresh = () => {
             setWeeks(streakWeeks());
             const { current, best } = computeStreak();
             setStreak({ current, best, days: dayStreak() });
-            setThisWeek(weekScore(weekKey(new Date())));
+            const week = weekKey(new Date());
+            setThisWeek(weekScore(week));
+            setRegions(weekRegions(week));
         };
         refresh();
         window.addEventListener(WEEKLY_ACTIVITY_EVENT, refresh);
@@ -128,12 +134,15 @@ export default function MindPowerPage() {
             </header>
 
             {/* The brain and its six regions, filled to this week's progress. */}
-            <MindPowerBrain t={t} weeklyRatio={weeks.find(w => w.isCurrent)?.ratio ?? 0} />
+            <MindPowerBrain t={t} weeklyRatio={weeks.find(w => w.isCurrent)?.ratio ?? 0} regions={regions ?? undefined} />
 
             {/* Streaks take the full width; the brains get the room. The focus
                 timer that used to sit beside them now lives in Stay ahead, with
                 the rest of the body's part. */}
             <StreakGrid weeks={weeks} streak={streak} thisWeek={thisWeek} language={language} t={t} />
+
+            {/* What they said they were here for, read off the same week. */}
+            <Goals progress={progress} thisWeek={thisWeek} streakDays={streak.days} language={language} t={t} />
 
             {/* The body's part: the focus timer first, then breathing, hands, rest. */}
             <StayAhead
@@ -173,17 +182,20 @@ function FocusTimerBlock({ t }: { t: (key: string) => string }) {
                 {t('progress.focus_timer')}
             </h3>
 
-            <span
-                className={`font-lyrics font-light text-[72px] sm:text-[96px] leading-none tabular-nums tracking-tight ${
-                    isComplete ? 'text-[#A9DE9F]' : 'text-[#F5F4EE]'
-                }`}
-                aria-live="off"
-            >
-                {formatFocusTime(remainingSeconds)}
-            </span>
+            {/* Room around the dial for its shadow, which the card would otherwise cut. */}
+            <div className="px-6 py-5">
+                <FocusDial
+                    remainingSeconds={remainingSeconds}
+                    isRunning={isRunning}
+                    isComplete={isComplete}
+                    // The ring sets the length only from a clean clock, like the presets below.
+                    onSetMinutes={isPristine ? setFocusDuration : undefined}
+                    className="w-[min(72vw,300px)] shrink-0"
+                />
+            </div>
 
             {isComplete && (
-                <p className="text-[14px] text-[#A9DE9F] -mt-3">{t('progress.focus_done')}</p>
+                <p className="text-[14px] text-[#F1D066] -mt-3">{t('progress.focus_done')}</p>
             )}
 
             <div className="flex items-center gap-3">

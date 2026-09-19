@@ -17,6 +17,7 @@ import {
     fillClipTop,
     type RegionKey,
 } from './brainGeometry';
+import type { RegionScore, RegionSignal } from '@/lib/mindRegions';
 
 /**
  * The paper brain, the six callouts around it, and this week's level.
@@ -54,6 +55,50 @@ interface MindPowerBrainProps {
     t: (key: string) => string;
     /** This week's share of the weekly goal, 0–1. */
     weeklyRatio: number;
+    /**
+     * Where the week went, part by part. With this, each region carries its
+     * own fill: shown inside the lobe while that region is pointed at, and for
+     * all six at once in the "By region" view. Without it the brain is the
+     * single meter it always was.
+     */
+    regions?: Record<RegionKey, RegionScore>;
+}
+
+/**
+ * A region's hotspot as a CSS clip, and the top and bottom of its box, so a
+ * fill can rise inside the lobe the way the whole brain's fill rises inside
+ * the model. Frame coordinates become percentages of the render.
+ */
+const REGION_CLIPS: Record<RegionKey, { clip: string; top: number; bottom: number }> = Object.fromEntries(
+    REGION_POLYGONS.map(({ region, points }) => {
+        const pts = points.split(' ').map(p => p.split(',').map(Number) as [number, number]);
+        const ys = pts.map(([, y]) => (y / FRAME_H) * 100);
+        return [
+            region,
+            {
+                clip: `polygon(${pts.map(([x, y]) => `${((x / FRAME_W) * 100).toFixed(2)}% ${((y / FRAME_H) * 100).toFixed(2)}%`).join(', ')})`,
+                top: Math.min(...ys),
+                bottom: Math.max(...ys),
+            },
+        ];
+    }),
+) as Record<RegionKey, { clip: string; top: number; bottom: number }>;
+
+/** The inset that leaves the bottom `ratio` of a region's box lit. */
+const regionClipTop = (region: RegionKey, ratio: number) => {
+    const { top, bottom } = REGION_CLIPS[region];
+    return top + (bottom - top) * (1 - Math.min(1, Math.max(0, ratio)));
+};
+
+/** One signal in the reader's words: "410 of 300 words", "1 focus session". */
+function signalText(signal: RegionSignal, t: (key: string) => string): string {
+    const inMinutes = signal.key === 'recording' || signal.key === 'practice';
+    const value = inMinutes ? Math.round(signal.value / 60) : Math.round(signal.value);
+    const goal = inMinutes ? Math.round(signal.goal / 60) : signal.goal;
+    const base = `progress.region_signals.${signal.key}`;
+    const counted = ['newProjects', 'focus', 'songsFinished', 'lessons', 'revisited', 'shares', 'combined'].includes(signal.key);
+    const key = counted ? (value === 1 ? `${base}_one` : `${base}_other`) : base;
+    return t(key).replace('{value}', String(value)).replace('{goal}', String(goal));
 }
 
 const SPARKS = [
@@ -81,10 +126,13 @@ const useIsLarge = () =>
 
 type Lines = Partial<Record<RegionKey, string>>;
 
-export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) {
+export default function MindPowerBrain({ t, weeklyRatio, regions }: MindPowerBrainProps) {
     const [active, setActive] = useState<RegionKey | null>(null);
     const reduceMotion = useReducedMotion();
     const large = useIsLarge();
+    // The whole brain as one meter, or the six regions each at their own level.
+    const [byRegion, setByRegion] = useState(false);
+    const showRegions = byRegion && !!regions;
 
     // ---- Level fill ----
     const [fillRatio, setFillRatio] = useState(0);
@@ -250,9 +298,61 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
     const goal = hitWeeklyGoal(weeklyRatio);
     const sparkColor = goal ? '#E0BF6E' : '#6FAF62';
     const depth = (z: number) => (reduceMotion ? undefined : `translateZ(${z}px)`);
+    // The single meter steps aside for a region's colour, and for the region view.
+    const meterHidden = !!tint || showRegions;
 
     const setTitleRef = (region: RegionKey) => (el: HTMLElement | null) => {
         titleRefs.current[region] = el;
+    };
+
+    /**
+     * A region's own fill: the grey render with the region's colour over it,
+     * clipped to the lobe and then to its level from the bottom up. Shown for
+     * the region pointed at, and for all six in the region view.
+     */
+    const regionFill = (region: RegionKey) => {
+        if (!regions) return null;
+        const visible = showRegions || active === region;
+        const ratio = regions[region].ratio;
+        return (
+            <div
+                key={`fill-${region}`}
+                className="absolute inset-0 pointer-events-none transition-opacity duration-300 ease-out"
+                style={{ opacity: visible ? 1 : 0, clipPath: REGION_CLIPS[region].clip, isolation: 'isolate', transform: depth(24) }}
+                data-region-fill={region}
+                data-ratio={ratio.toFixed(2)}
+                aria-hidden
+            >
+                <div
+                    className="absolute inset-0 transition-[clip-path] duration-700 ease-out"
+                    style={{ clipPath: `inset(${regionClipTop(region, ratio).toFixed(2)}% 0 0 0)` }}
+                >
+                    <img
+                        src={BRAIN_SRC}
+                        alt=""
+                        width={FRAME_W}
+                        height={FRAME_H}
+                        draggable={false}
+                        className="block w-full h-auto select-none"
+                        style={{ filter: 'grayscale(1) brightness(1.12)' }}
+                    />
+                    <div
+                        className="absolute inset-0"
+                        style={{
+                            background: ratio >= 1 ? '#DCAE3C' : REGION_COLORS[region],
+                            mixBlendMode: 'color',
+                            opacity: 0.9,
+                            WebkitMaskImage: `url(${BRAIN_SRC})`,
+                            maskImage: `url(${BRAIN_SRC})`,
+                            WebkitMaskSize: '100% 100%',
+                            maskSize: '100% 100%',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskRepeat: 'no-repeat',
+                        }}
+                    />
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -271,6 +371,7 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                             region={region}
                             side="left"
                             active={active === region}
+                            score={regions?.[region]}
                             titleRef={setTitleRef(region)}
                             onEnter={() => select(region)}
                             onClick={() => toggle(region)}
@@ -321,7 +422,7 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                             draggable={false}
                             aria-hidden
                             className={`absolute inset-0 block w-full h-auto select-none transition-[clip-path,opacity] ${speed} ease-out`}
-                            style={{ clipPath: `inset(${clipTop.toFixed(2)}% 0 0 0)`, opacity: tint ? 0 : 1, transform: depth(24) }}
+                            style={{ clipPath: `inset(${clipTop.toFixed(2)}% 0 0 0)`, opacity: meterHidden ? 0 : 1, transform: depth(24) }}
                         />
 
                         {/* The region colour: a greyscale render with the colour blended over
@@ -329,7 +430,9 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                             sees only the grey copy beneath it, not the page. */}
                         <div
                             className={`absolute inset-0 pointer-events-none transition-opacity ${speed} ease-out`}
-                            style={{ opacity: tint ? 1 : 0, transform: depth(24), isolation: 'isolate' }}
+                            // In the region view the lobes carry their own colour; the
+                            // whole-brain wash would only muddy them.
+                            style={{ opacity: tint && !showRegions ? 1 : 0, transform: depth(24), isolation: 'isolate' }}
                             aria-hidden
                         >
                             <img
@@ -359,12 +462,15 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                             />
                         </div>
 
+                        {/* Each region at its own level. */}
+                        {REGION_ORDER.map(regionFill)}
+
                         {/* The level line. */}
                         <div
                             className={`absolute left-[4%] right-[2%] flex items-center pointer-events-none transition-[top,opacity] ${speed} ease-out`}
                             style={{
                                 top: `${clipTop.toFixed(2)}%`,
-                                opacity: tint ? 0 : 1,
+                                opacity: meterHidden ? 0 : 1,
                                 transform: `translateY(-50%) ${depth(30) ?? ''}`,
                             }}
                             aria-hidden
@@ -475,6 +581,7 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                             region={region}
                             side="right"
                             active={active === region}
+                            score={regions?.[region]}
                             titleRef={setTitleRef(region)}
                             onEnter={() => select(region)}
                             onClick={() => toggle(region)}
@@ -514,6 +621,33 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                 )}
             </div>
 
+            {/* One meter, or six: the same week, read whole or by where it went. */}
+            {regions && (
+                <div className="flex justify-center" data-view={showRegions ? 'regions' : 'whole'}>
+                    <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1">
+                        {(
+                            [
+                                { key: 'whole', label: t('progress.mp_view_whole'), on: !byRegion },
+                                { key: 'regions', label: t('progress.mp_view_regions'), on: byRegion },
+                            ] as const
+                        ).map(option => (
+                            <button
+                                key={option.key}
+                                type="button"
+                                onClick={() => setByRegion(option.key === 'regions')}
+                                aria-pressed={option.on}
+                                data-view-option={option.key}
+                                className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F] ${
+                                    option.on ? 'bg-[#F5F4EE] text-stone-900' : 'text-stone-400 hover:text-[#F5F4EE]'
+                                }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Below lg: the callouts as a horizontal carousel, the active one lit
                 and brought to the middle. Bleeds to the page edge so the next card
                 peeks in from the side. */}
@@ -534,6 +668,7 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                             region={region}
                             side="stack"
                             active={active === region}
+                            score={regions?.[region]}
                             onEnter={() => undefined}
                             onClick={() => toggle(region)}
                             t={t}
@@ -549,6 +684,8 @@ interface CalloutProps {
     region: RegionKey;
     side: 'left' | 'right' | 'stack';
     active: boolean;
+    /** This week's share for the region, with the signals behind it. */
+    score?: RegionScore;
     onEnter: () => void;
     onClick: () => void;
     t: (key: string) => string;
@@ -561,10 +698,11 @@ interface CalloutProps {
  * rest, in its region's colour when that region is the one pointed at. The
  * headline is what the leader line is measured from.
  */
-function Callout({ region, side, active, onEnter, onClick, t, titleRef }: CalloutProps) {
+function Callout({ region, side, active, score, onEnter, onClick, t, titleRef }: CalloutProps) {
     const base = `progress.regions.${region}`;
     const isStack = side === 'stack';
     const color = REGION_COLORS[region];
+    const pct = score ? Math.round(score.ratio * 100) : null;
 
     return (
         <button
@@ -601,6 +739,31 @@ function Callout({ region, side, active, onEnter, onClick, t, titleRef }: Callou
             >
                 {t(`${base}.desc`)}
             </span>
+
+            {/* This week's share of the region, and what fed it: a thin bar in the
+                region's colour, then the signals in plain words. */}
+            {score && pct !== null && (
+                <span
+                    className={`mt-1 flex w-full flex-col gap-1.5 ${side === 'left' ? 'items-end' : 'items-start'}`}
+                    data-region-score={region}
+                    data-pct={pct}
+                >
+                    <span className="block h-[3px] w-full max-w-[220px] overflow-hidden rounded-full bg-white/10">
+                        <span
+                            className="block h-full rounded-full transition-[width,background-color] duration-700 ease-out"
+                            style={{
+                                width: `${pct}%`,
+                                backgroundColor: score.ratio >= 1 ? '#DCAE3C' : active ? color : 'rgba(245,244,238,0.45)',
+                                marginLeft: side === 'left' ? 'auto' : undefined,
+                            }}
+                        />
+                    </span>
+                    <span className={`text-[11.5px] leading-snug tabular-nums ${active ? 'text-stone-300' : 'text-stone-500'}`}>
+                        {t('progress.mp_region_week').replace('{pct}', String(pct))}
+                        {score.signals.map(s => ` · ${signalText(s, t)}`).join('')}
+                    </span>
+                </span>
+            )}
         </button>
     );
 }

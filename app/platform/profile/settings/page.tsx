@@ -2,8 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { User, Mail, BadgeCheck, CreditCard, Loader2 } from 'lucide-react';
+import { User, Mail, BadgeCheck, CreditCard, Loader2, Undo2 } from 'lucide-react';
 import Link from 'next/link';
+import OffboardingModal from '../components/OffboardingModal';
+import PasswordSection from '../components/PasswordSection';
+import type { OffboardingKind, OffboardingReason } from '@/lib/offboarding';
+import { FALLBACK_PRICING } from '@/lib/paddle/config';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import VerifiedMark from '../../components/VerifiedMark';
 import VerifyModal from '../components/VerifyModal';
@@ -25,13 +29,17 @@ import * as btn from '@/app/platform/components/buttonStyles';
  * already scheduled. A cancelled subscription stays `active` until its period
  * runs out, which is why the scheduled change is read before the status.
  */
+/** "3 October 2026", in the page's language. */
+function formatDate(iso: string | null | undefined, locale: string): string {
+    return iso ? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso)) : '';
+}
+
 function describeBilling(
     plan: ReturnType<typeof useUserPlan>,
     t: (key: string) => string,
     locale: string,
 ): string {
-    const date = (iso: string | null) =>
-        iso ? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso)) : '';
+    const date = (iso: string | null) => formatDate(iso, locale);
     const { subscriptionStatus: status, billing } = plan;
 
     if (!plan.paid) {
@@ -52,6 +60,39 @@ function describeBilling(
 }
 
 /**
+ * The one-word state of the subscription, for the pill beside the plan name.
+ * Null when there is nothing to describe (no plan, still loading).
+ */
+function billingStatus(
+    plan: ReturnType<typeof useUserPlan>,
+    t: (key: string) => string,
+    locale: string,
+): { label: string; tone: 'green' | 'gold' | 'red' | 'neutral' } | null {
+    const { subscriptionStatus: status, billing } = plan;
+    if (plan.loading) return null;
+    if (!plan.paid) {
+        if (plan.hasPro || plan.hasMax) return { label: t('profile.billing.status_granted'), tone: 'green' };
+        if (status === 'past_due') return { label: t('profile.billing.status_past_due'), tone: 'red' };
+        if (status === 'paused') return { label: t('profile.billing.status_paused'), tone: 'neutral' };
+        if (status === 'canceled') return { label: t('profile.billing.status_canceled'), tone: 'neutral' };
+        return null;
+    }
+    if (billing.scheduledChange?.action === 'cancel') {
+        return { label: t('profile.billing.status_ends').replace('{date}', formatDate(billing.scheduledChange.effectiveAt, locale)), tone: 'gold' };
+    }
+    if (status === 'past_due') return { label: t('profile.billing.status_past_due'), tone: 'red' };
+    if (status === 'trialing') return { label: t('profile.billing.status_trial'), tone: 'gold' };
+    return { label: t('profile.billing.status_active'), tone: 'green' };
+}
+
+const PILL_TONE = {
+    green: 'bg-[#86BE7F]/30 text-[#2f5a2b]',
+    gold: 'bg-[#F1D066]/40 text-[#6b5410]',
+    red: 'bg-red-100 text-red-800',
+    neutral: 'bg-stone-200/70 text-stone-600',
+} as const;
+
+/**
  * Settings. Lives under /platform/profile so the layout gives it the same
  * focused treatment as the profile itself: no sidebar, back button top-left,
  * slide transitions.
@@ -65,6 +106,11 @@ export default function SettingsPage() {
     const { t, language } = useLanguage();
     const plan = useUserPlan();
     const [openingPortal, setOpeningPortal] = useState(false);
+    // Which way-out sheet is open, if any, and whether a billing change is in flight.
+    const [offboarding, setOffboarding] = useState<OffboardingKind | null>(null);
+    const [billingBusy, setBillingBusy] = useState(false);
+    // Said inside the subscription card, where the thing it is about lives.
+    const [billingNotice, setBillingNotice] = useState('');
 
     // `name` is the one stored value (Auth displayName); the two fields below
     // are how it is edited, and recompose it on every keystroke.
@@ -106,6 +152,10 @@ export default function SettingsPage() {
         setNotification(msg);
         setTimeout(() => setNotification(''), 4000);
     };
+    const showBillingNotice = (msg: string) => {
+        setBillingNotice(msg);
+        setTimeout(() => setBillingNotice(''), 6000);
+    };
 
     /**
      * Paddle's customer portal, where the card, the plan and the invoices
@@ -121,15 +171,85 @@ export default function SettingsPage() {
             const res = await authedFetch('/api/paddle/portal', { method: 'POST' });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.url) {
-                showNotification(t('profile.billing.portal_error'));
+                showBillingNotice(t('profile.billing.portal_error'));
                 return;
             }
             window.open(data.url, '_blank', 'noopener');
         } catch {
-            showNotification(t('profile.billing.portal_error'));
+            showBillingNotice(t('profile.billing.portal_error'));
         } finally {
             setOpeningPortal(false);
         }
+    };
+
+    /**
+     * Cancel at the end of the paid period. The server schedules it with
+     * Paddle and writes the date back, so the pill reads "Ends {date}" as soon
+     * as the sheet closes; "Keep my subscription" undoes it until then.
+     */
+    const cancelSubscription = async (reasons: OffboardingReason[], note: string) => {
+        if (isMockUser) {
+            setOffboarding(null);
+            showBillingNotice(t('profile.billing.cancelled_notice_nodate'));
+            return;
+        }
+        const res = await authedFetch('/api/paddle/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reasons, note }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'cancel-failed');
+        setOffboarding(null);
+        showBillingNotice(
+            data.effectiveAt
+                ? t('profile.billing.cancelled_notice').replace('{date}', formatDate(data.effectiveAt, language))
+                : t('profile.billing.cancelled_notice_nodate'),
+        );
+    };
+
+    const resumeSubscription = async () => {
+        if (billingBusy) return;
+        setBillingBusy(true);
+        try {
+            if (!isMockUser) {
+                const res = await authedFetch('/api/paddle/resume', { method: 'POST' });
+                if (!res.ok) throw new Error('resume-failed');
+            }
+            showBillingNotice(t('profile.billing.resumed_notice'));
+        } catch (error) {
+            console.error('[settings] resume failed:', error);
+            showBillingNotice(t('profile.billing.resume_error'));
+        } finally {
+            setBillingBusy(false);
+        }
+    };
+
+    /**
+     * The end. The server removes everything and the Auth user last; the
+     * browser then signs out and leaves for the goodbye page with a full
+     * navigation, so the platform layout never sees a signed-out user on a
+     * platform route and bounces them to sign-in instead.
+     */
+    const deleteAccount = async (reasons: OffboardingReason[], note: string) => {
+        if (isMockUser) {
+            localStorage.removeItem('playwright_mock_user');
+            window.location.assign('/goodbye');
+            return;
+        }
+        const res = await authedFetch('/api/account/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reasons, note }),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'delete-failed');
+        }
+        const { signOut } = await import('firebase/auth');
+        const { auth } = await import('@/lib/firebase');
+        await signOut(auth).catch(() => {});
+        window.location.assign('/goodbye');
     };
 
     const sizeLabel: Record<LyricSize, string> = {
@@ -354,6 +474,102 @@ export default function SettingsPage() {
 
             <div className="h-px bg-stone-200/60" />
 
+            {/* Subscription: the plan, its state, and every way to act on it.
+                Cancelling happens here, in the product's own words, with the
+                reasons asked on the way; the card, the invoices and the billing
+                address stay on the payment partner's portal, which is the one
+                place that should ever see a card number. */}
+            <section className="space-y-3">
+                <div className="space-y-0.5">
+                    <p className="font-sans text-sm font-medium text-stone-800">{t('profile.billing.section_title')}</p>
+                    <p className="text-[13px] text-stone-600">{t('profile.billing.section_desc')}</p>
+                </div>
+
+                <div className="rounded-[20px] bg-white/60 border border-stone-200/70 p-5 space-y-4">
+                    {plan.loading ? (
+                        <div className="h-12 rounded-[12px] bg-stone-200/40 animate-pulse" />
+                    ) : (
+                        <>
+                            <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                                <div className="min-w-0">
+                                    <p className="text-lg font-sans font-medium tracking-tight text-stone-900">
+                                        {plan.hasMax ? 'Pro' : plan.hasPro ? t('profile.billing.plan_base') : t('profile.billing.no_plan')}
+                                    </p>
+                                    {plan.paid && plan.plan && plan.billing.billingPeriod && (
+                                        <p className="text-[13px] text-stone-600">
+                                            {t('profile.billing.price_line')
+                                                .replace('{price}', String(FALLBACK_PRICING[plan.plan][plan.billing.billingPeriod]))
+                                                .replace('{period}', t(`profile.billing.${plan.billing.billingPeriod}`).toLowerCase())}
+                                        </p>
+                                    )}
+                                </div>
+                                {(() => {
+                                    const status = billingStatus(plan, t, language);
+                                    return status ? (
+                                        <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${PILL_TONE[status.tone]}`} data-billing-status>
+                                            {status.label}
+                                        </span>
+                                    ) : null;
+                                })()}
+                            </div>
+
+                            <p className="text-[13.5px] text-stone-600 leading-relaxed">{describeBilling(plan, t, language)}</p>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                {plan.billing.hasSubscription && (
+                                    <button
+                                        type="button"
+                                        onClick={openBillingPortal}
+                                        disabled={openingPortal}
+                                        title={t('profile.billing.manage_billing_desc')}
+                                        className={`${btn.secondary('sm')} cursor-pointer disabled:cursor-not-allowed`}
+                                    >
+                                        {openingPortal ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+                                        {openingPortal ? t('profile.billing.opening') : t('profile.billing.manage_billing')}
+                                    </button>
+                                )}
+
+                                {/* A running paid subscription can be cancelled; one already
+                                    cancelled can be kept. Never both. */}
+                                {plan.paid && plan.billing.scheduledChange?.action === 'cancel' ? (
+                                    <button
+                                        type="button"
+                                        onClick={resumeSubscription}
+                                        disabled={billingBusy}
+                                        className={`${btn.primary('sm')} cursor-pointer disabled:cursor-not-allowed`}
+                                    >
+                                        {billingBusy ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
+                                        {t('profile.billing.resume_action')}
+                                    </button>
+                                ) : plan.paid ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setOffboarding('cancel')}
+                                        aria-haspopup="dialog"
+                                        className={`${btn.ghost('sm')} cursor-pointer`}
+                                    >
+                                        {t('profile.billing.cancel_action')}
+                                    </button>
+                                ) : null}
+
+                                {!plan.billing.hasSubscription && !plan.hasPro && (
+                                    <Link href="/onboarding?step=paywall" className={`${btn.primary('sm')} cursor-pointer`}>
+                                        <CreditCard size={14} />
+                                        {t('profile.billing.choose_plan')}
+                                    </Link>
+                                )}
+                            </div>
+
+                            {billingNotice && (
+                                <p className="text-[13px] text-stone-700 font-medium" role="status">{billingNotice}</p>
+                            )}
+                        </>
+                    )}
+                </div>
+            </section>
+
+            <div className="h-px bg-stone-200/60" />
+
             <div className="space-y-1">
                 {/* Get verified — the seal beside your name. Three requirements
                     (real name, biography, photo); an admin makes the call, so the
@@ -392,43 +608,9 @@ export default function SettingsPage() {
                     )}
                 </div>
 
-                {/* The plan, and the one control that acts on it. A paying
-                    account gets Paddle's portal (card, cancel, invoices); an
-                    account with nothing to manage gets the plans. The upper
-                    tier is "Pro" (untranslated); the standard plan has no
-                    name and reads as the product itself. */}
-                <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
-                    <div className="space-y-0.5">
-                        <p className="font-sans text-sm font-medium text-stone-800">
-                            {t('profile.current_plan')}{': '}
-                            <span className="font-semibold">
-                                {plan.loading ? '' : plan.hasMax ? 'Pro' : plan.hasPro ? t('profile.billing.plan_base') : t('profile.billing.no_plan')}
-                            </span>
-                        </p>
-                        <p className="text-[13px] text-stone-600">
-                            {plan.loading ? '' : describeBilling(plan, t, language)}
-                        </p>
-                    </div>
-                    {!plan.loading && (plan.billing.hasSubscription ? (
-                        <button
-                            type="button"
-                            onClick={openBillingPortal}
-                            disabled={openingPortal}
-                            className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed`}
-                        >
-                            {openingPortal ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
-                            {openingPortal ? t('profile.billing.opening') : t('profile.manage_action')}
-                        </button>
-                    ) : !plan.hasPro && (
-                        <Link
-                            href="/onboarding?step=paywall"
-                            className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
-                        >
-                            <CreditCard size={14} />
-                            {t('profile.billing.choose_plan')}
-                        </Link>
-                    ))}
-                </div>
+                {/* Password: current and new, or the reset mail for an account
+                    that never set one. */}
+                <PasswordSection t={t} isMockUser={isMockUser} />
 
                 <div className="flex items-center justify-between py-4">
                     <div className="space-y-0.5">
@@ -440,6 +622,34 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </div>
+
+            <div className="h-px bg-stone-200/60" />
+
+            {/* The way out. Quiet in the page, red only once inside the sheet,
+                where the one confirmation lives. */}
+            <section className="flex items-center justify-between gap-4 py-2">
+                <div className="space-y-0.5">
+                    <p className="font-sans text-sm font-medium text-stone-800">{t('profile.offboarding.title')}</p>
+                    <p className="text-[13px] text-stone-600">{t('profile.offboarding.desc')}</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setOffboarding('delete')}
+                    aria-haspopup="dialog"
+                    className={`${btn.ghost('sm')} ml-4 shrink-0 whitespace-nowrap !text-red-700 hover:!text-red-800 cursor-pointer`}
+                >
+                    {t('profile.offboarding.action')}
+                </button>
+            </section>
+
+            <OffboardingModal
+                isOpen={offboarding !== null}
+                onClose={() => setOffboarding(null)}
+                kind={offboarding ?? 'cancel'}
+                endsAt={formatDate(plan.billing.nextBilledAt ?? plan.billing.currentPeriodEnd ?? plan.billing.trialEndsAt, language)}
+                onConfirm={offboarding === 'delete' ? deleteAccount : cancelSubscription}
+                t={t}
+            />
 
             <VerifyModal
                 isOpen={showVerify}

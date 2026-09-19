@@ -16,6 +16,8 @@ import ConnectionList, { PendingRequests, useConnectionPeople } from './componen
 import { useMySongs, leaveProfileTo, openSongInCreate, formatSongDate } from './useMySongs';
 import { resetGuide } from '@/lib/onboardingGuide';
 import { writePublicProfile, fetchPublicProfiles } from '@/lib/publicProfile';
+import { useOnboardingAnswers } from '@/lib/getToKnowYou';
+import GetToKnowYouProgress from './components/GetToKnowYouProgress';
 
 /** How many recent songs / connections the profile shelf shows before "More". */
 const RECENT_SONGS = 4;
@@ -115,6 +117,7 @@ export default function ProfilePage() {
     const { request: verification } = useVerificationRequest(user?.uid ?? null);
     const { songs, songsLoaded } = useMySongs(user, t);
     const { people, peopleLoaded, disconnect, requesters, accept, decline } = useConnectionPeople(user);
+    const { loaded: answersLoaded, progress: knowYou } = useOnboardingAnswers(user?.uid ?? null);
 
     // Warm the Create route so the swap after the slide-out isn't a cold load.
     useEffect(() => { router.prefetch('/platform/create'); }, [router]);
@@ -508,6 +511,34 @@ export default function ProfilePage() {
                         )}
                     </div>
                 </div>
+            </section>
+
+            {/* Get to know you: the onboarding questions, still open. The bar is
+                how much of them has been answered; what is answered is what
+                Mind Power follows their goals with. */}
+            <section className={`${CARD} p-5 md:p-6`}>
+                <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                        <h3 className="text-[15px] font-sans font-medium text-stone-800">{t('profile.gtky_title')}</h3>
+                        <p className="mt-1 text-[13px] text-stone-600 leading-relaxed">
+                            {answersLoaded && knowYou.answered === knowYou.total
+                                ? t('profile.gtky_complete')
+                                : t('profile.gtky_desc')}
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => router.push('/platform/profile/get-to-know-you')}
+                        className="group shrink-0 flex items-center gap-1 text-[13px] font-semibold text-stone-700 hover:text-stone-900 transition-colors cursor-pointer"
+                    >
+                        {knowYou.answered === 0
+                            ? t('profile.gtky_start')
+                            : knowYou.answered < knowYou.total
+                              ? t('profile.gtky_continue')
+                              : t('profile.gtky_edit')}
+                        <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                </div>
+                <GetToKnowYouProgress answered={knowYou.answered} total={knowYou.total} t={t} className="mt-4" />
             </section>
 
             {/* My songs. With none yet, the whole section is the invitation to

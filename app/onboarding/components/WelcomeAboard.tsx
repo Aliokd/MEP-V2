@@ -129,7 +129,12 @@ function PasswordOffer() {
     );
 }
 
-export default function WelcomeAboard() {
+/**
+ * `golden`: the account arrived with a golden ticket and holds the product
+ * for life, so the line about the trial's days would be false. The ticket's
+ * own line goes there instead; everything else on the screen still applies.
+ */
+export default function WelcomeAboard({ golden = false }: { golden?: boolean } = {}) {
     const { t } = useLanguage();
 
     const fill = (key: string) => t(key).replace('{days}', String(TRIAL_DAYS));
@@ -148,7 +153,7 @@ export default function WelcomeAboard() {
                     {t('onboarding.welcome.title')}
                 </h1>
                 <p className="mx-auto max-w-md text-[15px] font-medium text-stone-700/80">
-                    {fill('onboarding.welcome.subtitle')}
+                    {golden ? t('onboarding.welcome.subtitle_golden') : fill('onboarding.welcome.subtitle')}
                 </p>
             </div>
 

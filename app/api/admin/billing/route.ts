@@ -25,6 +25,9 @@ export const GET = withAdmin("billing.read", async () => {
     let trialsExpiring7d = 0;
     let trialsLapsed = 0;
     let missingPaddleId = 0;
+    // Cancelled from Settings but still running out their period: paying
+    // today, gone at the next renewal. The one leading indicator in here.
+    let scheduledCancellations = 0;
     const statuses: Record<string, number> = {};
 
     const attention: {
@@ -45,6 +48,7 @@ export const GET = withAdmin("billing.read", async () => {
         if (billing.subscriptionStatus) {
             statuses[billing.subscriptionStatus] = (statuses[billing.subscriptionStatus] || 0) + 1;
         }
+        if (billing.scheduledChange?.action === "cancel") scheduledCancellations += 1;
 
         const trialEnd = Date.parse(billing.trialEndsAt || "");
         if (!Number.isNaN(trialEnd)) {
@@ -98,6 +102,7 @@ export const GET = withAdmin("billing.read", async () => {
         trialsExpiring7d,
         trialsLapsed,
         missingPaddleId,
+        scheduledCancellations,
         attention: attention.slice(0, 100),
         note: "Derived from the billing object on each user document, not reconciled against Paddle.",
     });

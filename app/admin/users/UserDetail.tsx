@@ -155,6 +155,18 @@ export default function UserDetail({
                                         trial ends {new Date(u!.billing.trialEndsAt).toLocaleDateString()}
                                     </span>
                                 )}
+                                {/* A cancellation from Settings sits here as a scheduled
+                                    change while the paid period runs out. */}
+                                {u!.billing?.scheduledChange?.action === "cancel" && u!.billing.scheduledChange.effectiveAt && (
+                                    <Badge tone="red">
+                                        cancels {new Date(u!.billing.scheduledChange.effectiveAt).toLocaleDateString()}
+                                    </Badge>
+                                )}
+                                {u!.billing?.plan && (
+                                    <span className="text-xs text-ink-400">
+                                        {u!.billing.plan}{u!.billing.billingPeriod ? ` · ${u!.billing.billingPeriod}` : ""}
+                                    </span>
+                                )}
                             </div>
                             {can("users.write") && (
                                 <div className="flex flex-wrap items-center gap-2 mt-1">

@@ -22,7 +22,9 @@ import IntroCarousel from './components/IntroCarousel';
 import PaywallPlans from './components/PaywallPlans';
 import QuestionCards from './components/QuestionCards';
 import SwipeDeck, { type DeckState } from './components/SwipeDeck';
-import GoalBox, { isCustom, customText } from './components/GoalBox';
+import GoalBox from './components/GoalBox';
+import { QUESTIONS, NESTED_QUESTION, isCustom, customText } from '@/lib/onboardingQuestions';
+import { saveAllAnswers } from '@/lib/getToKnowYou';
 import MoodOptions from './components/MoodOptions';
 import AnalyzingAnswers from './components/AnalyzingAnswers';
 import EmailCapture from './components/EmailCapture';
@@ -113,90 +115,21 @@ const ADDRESSABLE_STEPS = new Set([STEPS.PAYWALL, STEPS.WELCOME]);
  * every CTA on the marketing site need the same answer.
  */
 
-// Only the stable ids and answer values live here — every visible label is
-// looked up under `onboarding.questions.<id>` in the locale files.
-const QUESTIONS = [
-    {
-        id: 'songwriter_type',
-        // Rendered as picture cards rather than the default option list —
-        // its labels live under `options.<value>.title` / `.desc`.
-        isCards: true,
-        options: [
-            { value: "lyricist" },
-            { value: "melodist" },
-            { value: "producer" },
-            { value: "storyteller" },
-            { value: "explorer" }
-        ]
-    },
-    {
-        id: 'struggle',
-        // Dealt as a swipe deck rather than a list, and the only question that
-        // takes more than one answer: its value is an array of every struggle
-        // swiped right. See SwipeDeck.
-        isDeck: true,
-        options: [
-            { value: "unfinished" },
-            { value: "weak_melodies" },
-            { value: "no_structure" },
-            { value: "too_similar" },
-            { value: "overthink" }
-        ]
-    },
-    {
-        id: 'dream_outcome',
-        // Cards taken off the table and put in a box, plus any the visitor
-        // writes themselves. Takes several answers, like the deck. See GoalBox.
-        isGoals: true,
-        options: [
-            { value: "finish_songs" },
-            { value: "unique_sound" },
-            { value: "move_people" },
-            { value: "release_music" },
-            { value: "creative_fearless" },
-            { value: "write_for_loved_ones" },
-            { value: "feel_better" },
-            { value: "meet_songwriters" },
-            { value: "earn_money" }
-        ]
-    },
-    {
-        id: 'emotional_inspiration',
-        // Picture pills — each option is a photograph of the mood it names,
-        // washed pale. The colours that used to sit here were never read by
-        // anything; the imagery lives in MoodOptions now.
-        isVisual: true,
-        options: [
-            { value: "melancholic" },
-            { value: "energetic" },
-            { value: "cinematic" },
-            { value: "dark" },
-            { value: "intimate" }
-        ]
-    },
-];
-
-/**
- * The question folded inside the songwriter-type cards rather than asked on a
- * step of its own. Choosing a type doesn't advance the quiz — the other four
- * cards leave, the chosen one takes the full width, and this is asked on its
- * face. See the `nested` prop on QuestionCards.
+/*
+ * The questions themselves — ids, answer values and how each is rendered
+ * (picture cards, the swipe deck, the goal box, the mood pills) — live in
+ * lib/onboardingQuestions.ts, shared with the profile's "Get to know you",
+ * which asks the same questions again later. Every visible label is looked
+ * up under `onboarding.questions.<id>` in the locale files.
  *
- * It is deliberately NOT in QUESTIONS: that array is the list of steps, and
- * this is not one. The step counter, the dots and the back button all count it
- * out correctly as a result, and the answer still lands in `answers` under its
- * own id, so the verdict reads it exactly as it did when it was step five.
+ * NESTED_QUESTION is the one folded inside the songwriter-type cards rather
+ * than asked on a step of its own. Choosing a type doesn't advance the quiz —
+ * the other four cards leave, the chosen one takes the full width, and this is
+ * asked on its face. See the `nested` prop on QuestionCards. It is deliberately
+ * NOT in QUESTIONS: that array is the list of steps, and this is not one. The
+ * step counter, the dots and the back button all count it out correctly as a
+ * result, and the answer still lands in `answers` under its own id.
  */
-const NESTED_QUESTION = {
-    id: 'creation_method',
-    options: [
-        { value: "lyric_phrase" },
-        { value: "melody_head" },
-        { value: "chords" },
-        { value: "beat_production" },
-        { value: "improvisation" }
-    ],
-};
 
 // The mood question, reached by hand because its photographs are mounted from
 // the first question onward rather than only while it is the one on screen —
@@ -317,14 +250,38 @@ function OnboardingPageInner() {
      * account rather than a place in the queue.
      */
     const [invite, setInvite] = useState<{ id: string; inviterName: string | null; projectTitle: string | null; email: string } | null>(null);
+    /**
+     * A golden ticket, once the server has vouched for its code (`?golden=`
+     * on arrival, see the Golden program at app/golden). The person was
+     * chosen by hand and the ticket opens the product for life, so the offer
+     * and the plans have nothing to sell them: the flow goes from the verdict
+     * to the code (or the welcome), and the ticket is redeemed the moment an
+     * account exists to redeem it on.
+     */
+    const [golden, setGolden] = useState<{ code: string; name: string } | null>(null);
+    const [goldenRedeemed, setGoldenRedeemed] = useState(false);
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
     const [accountError, setAccountError] = useState('');
-    const signupsOpen = SIGNUPS_OPEN || invite !== null;
+    const signupsOpen = SIGNUPS_OPEN || invite !== null || golden !== null;
     const [waitlistSource, setWaitlistSource] = useState('yt-vsl');
     // Which CTA sent them (`?from=`), recorded on the account by the start route.
     const [signupSource, setSignupSource] = useState('direct');
     const { language, t } = useLanguage();
     const { user } = useAuth();
+
+    /**
+     * Saved every time, not only at signup. A new visitor's answers travel
+     * with the account creation; a signed-in one (a returning account, a
+     * golden ticket) never reaches that call, so each change is written to
+     * their account as it is made. The first state object is skipped: it is
+     * the empty start, and writing it would erase what the account already
+     * holds before a single question has been answered.
+     */
+    const startingAnswers = useRef(answers);
+    useEffect(() => {
+        if (!user || answers === startingAnswers.current) return;
+        void saveAllAnswers(user.uid, answers);
+    }, [answers, user]);
 
     /**
      * Hands the chosen plan to Paddle, which renders into the paywall itself
@@ -766,6 +723,20 @@ function OnboardingPageInner() {
         }
         if (params.get('from')) setSignupSource(params.get('from') || 'direct');
 
+        // A golden code. Checked with the server before it changes anything;
+        // a bad, spent or revoked code leaves the visitor on the ordinary flow.
+        const goldenCode = params.get('golden');
+        if (goldenCode) {
+            fetch(`/api/golden/lookup?code=${encodeURIComponent(goldenCode)}`)
+                .then(res => (res.ok ? res.json() : null))
+                .then(data => {
+                    if (!data?.valid) return;
+                    setGolden({ code: goldenCode, name: String(data.name ?? '') });
+                    setWaitlistFlow(false);
+                })
+                .catch(() => { /* the ordinary flow stands */ });
+        }
+
         // An invite link. Checked with the server before it changes anything —
         // a bad or spent id leaves the visitor on the ordinary pre-launch flow.
         const inviteId = params.get('invite');
@@ -814,6 +785,36 @@ function OnboardingPageInner() {
     }, [user]);
 
     /**
+     * The ticket, used. Runs once there is an account to put it on: the one
+     * the email step just made and signed the browser into, or the one the
+     * visitor arrived with. The server puts the account on the complimentary
+     * tier and marks the ticket redeemed; a refusal (someone else used it
+     * first, or this account already holds one) is logged and the flow goes
+     * on as an ordinary signup, plans and all.
+     */
+    useEffect(() => {
+        if (!user || !golden || goldenRedeemed) return;
+        let cancelled = false;
+        authedFetch('/api/golden/redeem', {
+            method: 'POST',
+            body: JSON.stringify({ code: golden.code }),
+        })
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (cancelled) return;
+                if (res.ok || data.error === 'has-ticket') {
+                    setGoldenRedeemed(true);
+                    capture('golden_redeemed', { already: data.already === true || data.error === 'has-ticket' });
+                } else {
+                    capture('golden_redeem_failed', { status: res.status, error: data.error ?? null });
+                    setGolden(null);
+                }
+            })
+            .catch(() => { /* the next render with a user tries again */ });
+        return () => { cancelled = true; };
+    }, [user, golden, goldenRedeemed]);
+
+    /**
      * The funnel, as events. The whole flow lives on one URL, so pageview
      * analytics see an arrival and nothing else — every step between the ad
      * click and the joined list would be invisible without these. Sent through
@@ -827,9 +828,10 @@ function OnboardingPageInner() {
     const funnelProps = () => {
         const params = new URLSearchParams(window.location.search);
         const isInvite = !!params.get('invite');
-        const isCampaign = !isInvite && !SIGNUPS_OPEN;
+        const isGolden = !isInvite && !!params.get('golden');
+        const isCampaign = !isInvite && !isGolden && !SIGNUPS_OPEN;
         return {
-            flow: isInvite ? 'invite' : isCampaign ? 'waitlist' : 'plain',
+            flow: isInvite ? 'invite' : isGolden ? 'golden' : isCampaign ? 'waitlist' : 'plain',
             source: isCampaign ? (params.get('from') || 'yt-vsl') : null,
         };
     };
@@ -1605,7 +1607,13 @@ function OnboardingPageInner() {
                             // The campaign flow ends on the secured screen — the
                             // offer and the plans sell a trial that can't start
                             // while signups are closed.
-                            onContinue={() => setCurrentStep(waitlistFlow ? STEPS.SECURED : STEPS.OFFER)}
+                            // A golden ticket has nothing to buy: straight
+                            // past the offer and the plans to the code.
+                            onContinue={() => {
+                                if (waitlistFlow) setCurrentStep(STEPS.SECURED);
+                                else if (golden) stepAfterCheckout();
+                                else setCurrentStep(STEPS.OFFER);
+                            }}
                         />
                     )}
 
@@ -1681,7 +1689,7 @@ function OnboardingPageInner() {
                     )}
 
                     {currentStep === STEPS.WELCOME && (
-                        <WelcomeAboard key="welcome" />
+                        <WelcomeAboard key="welcome" golden={goldenRedeemed} />
                     )}
 
                     {currentStep === STEPS.SECURED && (

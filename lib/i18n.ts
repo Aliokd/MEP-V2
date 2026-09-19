@@ -74,6 +74,10 @@ const APP_OWNED_SEGMENTS = [
     // out of the app, addressed by query string, and not indexed — so an app
     // route with no localized twins, like guidelines.
     'streak',
+    // 'golden' is the Golden program: the wall of a hundred hand-picked
+    // songwriters and their pages (app/golden). Sent as links to named people,
+    // English-only, not indexed; an app route with no localized twins.
+    'golden',
 ] as const;
 
 /** True for a single-segment path that could be a CMS-managed page. */

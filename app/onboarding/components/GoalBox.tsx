@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { CUSTOM_PREFIX, CUSTOM_MAX_LENGTH, isCustom, customText } from '@/lib/onboardingQuestions';
 
 /**
  * The goals question: a grid of cards and a box to put them in. Tapping a card
@@ -15,21 +16,16 @@ import { useLanguage } from '@/context/LanguageContext';
  * the box is meant to fill up. Only the newest card shows in the opening, so
  * once there is more than one in there the slider across the box front scrubs
  * back through the rest.
+ *
+ * A goal the visitor wrote themselves is stored as its own text behind
+ * CUSTOM_PREFIX, so it stays distinguishable from the option ids without
+ * needing a second field on the answer. Everything downstream that resolves a
+ * label has to know about it — see `isCustom`/`customText`, shared from
+ * lib/onboardingQuestions with the profile, which asks this question again.
+ * CUSTOM_MAX_LENGTH is a card's worth of room: measured against the smallest
+ * the card ever gets — the part standing clear of the box's rim — where that
+ * many characters still fit without being cut off.
  */
-
-// A goal the visitor wrote themselves is stored as its own text behind this
-// marker, so it stays distinguishable from the option ids without needing a
-// second field on the answer. Everything downstream that resolves a label has
-// to know about it — see `isCustom`/`customText`.
-export const CUSTOM_PREFIX = 'custom:';
-
-export const isCustom = (value: string) => value.startsWith(CUSTOM_PREFIX);
-export const customText = (value: string) => value.slice(CUSTOM_PREFIX.length);
-
-// Written on a card, so it has a card's worth of room and no more. Measured
-// against the smallest that card ever gets — the part of it standing clear of
-// the box's rim — where this many characters still fit without being cut off.
-const CUSTOM_MAX_LENGTH = 38;
 
 // The recessed face of the write-your-own cell: the one shape on the table
 // that is a hole rather than an object.

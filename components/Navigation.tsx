@@ -42,7 +42,10 @@ const Navigation = () => {
     const isAdmin = pathname?.startsWith('/admin');
     const isOnboarding = pathname === '/onboarding';
     const isHome = pathname === '/';
-    if (isPlatform || isAdmin || isOnboarding || isHome) return null; // Hide for platform, admin, onboarding, or home
+    // The Golden program pages carry their own header (a back link and the one
+    // button that matters); the site nav over them would be a second one.
+    const isGolden = pathname?.startsWith('/golden');
+    if (isPlatform || isAdmin || isOnboarding || isHome || isGolden) return null; // Hide for platform, admin, onboarding, home, or golden
 
     // These pages own their own top-right language switcher and are a dead end by
     // design — nav links back into a site you can't sign up for just add noise —
