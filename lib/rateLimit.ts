@@ -106,18 +106,25 @@ const buckets = new Map<string, number[]>();
  * the trustworthy entries are at the END of the list; anything the client
  * sent itself sits at the front. Reading the first entry, as this once did,
  * let a caller pick its own bucket with a random header per request and
- * walk straight past every limit here. Behind Firebase Hosting a request
- * reaches Cloud Run with two appended hops (the Hosting CDN, then Google's
- * front end), so the client is the second entry from the end; hit on the
- * run.app address directly there is one hop, and the client is the last.
+ * walk straight past every limit here. Measured on production 2026-09-19:
+ * a request on the run.app address arrives with the client as the LAST entry
+ * (one appended hop), and a request through Firebase Hosting arrives with two
+ * varying infrastructure addresses appended after the client (the Hosting
+ * proxy and Google's front end), so there the client is the third entry from
+ * the end. Anything the caller sent sits in front of that and is ignored.
+ * `x-veinote-xff-debug` on a request logs the raw list, for the day either
+ * hop count changes.
  */
 export function clientKey(request: Request): string {
     const forwarded = request.headers.get('x-forwarded-for');
     if (forwarded) {
         const hops = forwarded.split(',').map((s) => s.trim()).filter(Boolean);
         const host = (request.headers.get('host') ?? '').toLowerCase();
-        const trusted = host.endsWith('.run.app') ? 1 : 2;
+        const trusted = host.endsWith('.run.app') ? 1 : 3;
         const client = hops[Math.max(0, hops.length - trusted)];
+        if (request.headers.has('x-veinote-xff-debug')) {
+            console.info(`[rateLimit] xff=${JSON.stringify(hops)} host=${host} client=${client ?? 'none'}`);
+        }
         if (client) return client;
     }
     return request.headers.get('x-real-ip')?.trim() || 'unknown';
