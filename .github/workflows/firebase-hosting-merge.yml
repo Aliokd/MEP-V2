@@ -73,7 +73,7 @@ jobs:
           echo "SMTP_PASS as this run sees it: ${#SMTP_PASS} chars, fingerprint $(printf %s "$SMTP_PASS" | sha256sum | cut -c1-12)"
 
           MISSING=""
-          for NAME in GEMINI_API_KEY; do
+          for NAME in GEMINI_API_KEY SMTP_PASS; do
             if [ -z "${!NAME}" ]; then
               MISSING="$MISSING $NAME"
             fi
@@ -89,15 +89,11 @@ jobs:
             echo "::warning::Not set, falling back to the defaults in lib/email/send.ts:$SOFT"
           fi
 
-          # SMTP_PASS stopped being fatal when COLLAB_EMAIL_INVITES_ENABLED went false:
-          # the one feature that would have shipped visibly broken without it now
-          # refuses its own mail-dependent branch instead. It is still loud, because
-          # every other outbound mail — welcome, support replies, moderation notices,
-          # admin replies — has no such guard and fails silently while this is unset.
-          # Make it fatal again, and flip that flag back on, once the secret is added.
-          if [ -z "$SMTP_PASS" ]; then
-            echo "::warning::SMTP_PASS is not set — ALL outbound email fails silently in this deploy. Collaboration invites by email are disabled in code to match (lib/uiFlags.ts). Add it at Settings > Secrets and variables > Actions, on the 'Secrets' tab."
-          fi
+          # SMTP_PASS is fatal again (it is in the loop above): signups are open,
+          # /api/onboarding/start refuses to create an account it cannot mail a
+          # code to (503 mail-unavailable), and every other outbound mail, welcome,
+          # support replies, moderation notices, fails silently without it. A
+          # deploy with it unset would ship a site nobody can sign up to.
 
           # Soft, not fatal, because the paywall degrades on purpose: without the
           # client token it says payments are unavailable and lets people continue
