@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { SIGNUPS_OPEN } from '../lib/uiFlags';
 
 /**
  * The ad campaign's landing flow: /onboarding?flow=waitlist walks the quiz,
@@ -23,6 +24,7 @@ test.describe('Waitlist campaign flow', () => {
   });
 
   test('walks from the ad click to a secured spot', async ({ page }) => {
+    test.skip(SIGNUPS_OPEN, 'campaign flow only runs while signups are closed');
     let waitlistPayload: any = null;
     await page.route('**/api/waitlist', async (route) => {
       waitlistPayload = route.request().postDataJSON();
@@ -112,6 +114,7 @@ test.describe('Waitlist campaign flow', () => {
   });
 
   test('the quiz is optional - Next alone reaches the join page', async ({ page }) => {
+    test.skip(SIGNUPS_OPEN, 'campaign flow only runs while signups are closed');
     await page.route('**/api/waitlist', (route) =>
       route.fulfill({
         status: 200,
@@ -137,6 +140,7 @@ test.describe('Waitlist campaign flow', () => {
   });
 
   test('the marketing CTAs open the campaign flow', async ({ page }) => {
+    test.skip(SIGNUPS_OPEN, 'campaign flow only runs while signups are closed');
     await page.goto('/');
 
     // Every "Join the waitlist" on the page points at the campaign flow, each

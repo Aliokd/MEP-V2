@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { SITE_URL, isCmsPagePath, localizePath } from '@/lib/i18n';
 import { listPublishedPages } from '@/lib/sitePages';
+import { SIGNUPS_OPEN } from '@/lib/uiFlags';
 
 // Without this, Next renders the sitemap once at build time — and the deploy
 // builds run where no service account exists, so listPublishedPages() would
@@ -15,9 +16,12 @@ const PAGES: { path: string; changeFrequency: 'weekly' | 'monthly' | 'yearly'; p
     { path: '/about', changeFrequency: 'monthly', priority: 0.6 },
     // The blog index. Its posts are CMS pages and join the sitemap below.
     { path: '/blog', changeFrequency: 'weekly', priority: 0.7 },
-    // Pre-launch, this is where every call to action lands — worth indexing in
-    // its own right rather than only being reachable from the home page.
-    { path: '/waiting-list', changeFrequency: 'monthly', priority: 0.8 },
+    // While signups are closed this is where every call to action lands, so it
+    // is worth indexing in its own right. With them open the proxy redirects
+    // it to /onboarding, and a sitemap must not list a URL that redirects.
+    ...(SIGNUPS_OPEN
+        ? []
+        : [{ path: '/waiting-list', changeFrequency: 'monthly' as const, priority: 0.8 }]),
     { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
     // /terms has its own app route (CMS-backed with a code fallback), which
     // makes it "app-owned" — so the CMS branch below rightly skips it and it

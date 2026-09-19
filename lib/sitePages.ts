@@ -63,13 +63,25 @@ function shape(doc: FirebaseFirestore.DocumentSnapshot): SitePage {
     };
 }
 
-/** One published page by slug, or null. Drafts are invisible to the public site. */
+/**
+ * Whether the public site may show a page: published, and not dated in the
+ * future. A post carries the day it belongs to in `publishedAt`; one written
+ * ahead of that day (the launch post, dated the Monday) stays out of the
+ * index and answers 404 until the day arrives, with no second flag to flip.
+ */
+function isVisible(page: SitePage): boolean {
+    if (page.status !== "published") return false;
+    const at = Date.parse(page.publishedAt || "");
+    return Number.isNaN(at) || at <= Date.now();
+}
+
+/** One published page by slug, or null. Drafts and future-dated pages are invisible to the public site. */
 export async function getPublishedPage(slug: string): Promise<SitePage | null> {
     try {
         const doc = await adminDb.collection("site_pages").doc(slug).get();
         if (!doc.exists) return null;
         const page = shape(doc);
-        return page.status === "published" ? page : null;
+        return isVisible(page) ? page : null;
     } catch (err) {
         console.error(`[pages] Failed to load "${slug}":`, err);
         return null;
@@ -79,7 +91,7 @@ export async function getPublishedPage(slug: string): Promise<SitePage | null> {
 export async function listPublishedPages(): Promise<SitePage[]> {
     try {
         const snap = await adminDb.collection("site_pages").where("status", "==", "published").get();
-        return snap.docs.map(shape).sort((a, b) => a.order - b.order);
+        return snap.docs.map(shape).filter(isVisible).sort((a, b) => a.order - b.order);
     } catch (err) {
         console.error("[pages] Failed to list published pages:", err);
         return [];

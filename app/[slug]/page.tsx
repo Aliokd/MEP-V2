@@ -46,6 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
                 en: `/${slug}`,
                 no: `/no/${slug}`,
                 sv: `/sv/${slug}`,
+                "x-default": `/${slug}`,
             },
         },
     };

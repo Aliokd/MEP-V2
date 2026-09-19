@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
         description: t("blog.description"),
         alternates: {
             canonical: `${SITE_URL}${localizePath("/blog", language)}`,
-            languages: { en: "/blog", no: "/no/blog", sv: "/sv/blog" },
+            languages: { en: "/blog", no: "/no/blog", sv: "/sv/blog", "x-default": "/blog" },
         },
     };
 }

@@ -6,9 +6,11 @@ import {
     PATH_HEADER,
     isLocalizedPath,
     isPrefixedLocale,
+    localizePath,
     splitLocale,
     type Language,
 } from '@/lib/i18n';
+import { SIGNUPS_OPEN } from '@/lib/uiFlags';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
@@ -183,6 +185,53 @@ const OLD_TERMS_PATHS = new Set([
     '/sv/terms-of-use',
 ]);
 
+/**
+ * The public waiting-list page, in every locale. While signups are open it has
+ * nothing to offer that the onboarding flow does not, so it forwards there
+ * (permanently, since the redirect only ever flips back with a deploy that
+ * closes signups again). The locale prefix and the query string survive, so
+ * `/sv/waiting-list?from=yt` lands on `/sv/onboarding?from=yt` and the
+ * attribution is kept. /admin/waitlist is not in this set on purpose: the
+ * console's list stays reachable either way.
+ */
+const PUBLIC_WAITING_LIST_PATHS = new Set([
+    '/waiting-list',
+    '/no/waiting-list',
+    '/sv/waiting-list',
+]);
+
+/**
+ * Commonly typed URLs that were never routes here, mapped to the page people
+ * mean. Keyed on the un-prefixed path so `/sv/login` lands on `/sv/signin`;
+ * the target is then re-prefixed for the visitor's locale where the target is
+ * a localized page (see localizePath), and left bare where it is not
+ * (`/no/app` -> `/platform`). None of these shadow an app route (checked
+ * against app/ when they were added), and none should ever become a CMS slug:
+ * the proxy answers before [slug] gets a look in.
+ *
+ * `/pricing` goes to onboarding rather than a home-page anchor because the
+ * plans are shown inside the flow; the home page has no pricing section.
+ * `/faq` goes to the home page's Q&A accordion (the `#qa` section).
+ */
+const VANITY_REDIRECTS: Record<string, string> = {
+    '/login': '/signin',
+    '/sign-in': '/signin',
+    '/signup': '/onboarding',
+    '/register': '/onboarding',
+    '/pricing': '/onboarding',
+    '/faq': '/#qa',
+    '/contact': '/about',
+    '/help': '/about',
+    '/app': '/platform',
+};
+
+/** Prefixes `target` with the locale when the target has locale URLs. */
+function localizeTarget(target: string, locale: Language): { pathname: string; hash: string } {
+    const [pathname, hash = ''] = target.split('#');
+    const localized = localizePath(pathname, locale);
+    return { pathname: localized, hash: hash ? `#${hash}` : '' };
+}
+
 /** Passes the resolved locale and the un-prefixed path down to the server render. */
 function withLocaleHeaders(req: NextRequest, language: Language, path: string) {
     const headers = new Headers(req.headers);
@@ -214,7 +263,19 @@ export default function proxy(req: NextRequest) {
     if (RENAMED_WAITLIST_PATHS.has(pathname)) {
         const url = req.nextUrl.clone();
         url.pathname = pathname.replace(/\/waitlist$/, '/waiting-list');
+        // With signups open the renamed page forwards on again (below); skip
+        // the middle hop and send the old link straight to onboarding.
+        if (SIGNUPS_OPEN && PUBLIC_WAITING_LIST_PATHS.has(url.pathname)) {
+            url.pathname = url.pathname.replace(/\/waiting-list$/, '/onboarding');
+            return NextResponse.redirect(url, 308);
+        }
         return NextResponse.redirect(url, 301);
+    }
+
+    if (SIGNUPS_OPEN && PUBLIC_WAITING_LIST_PATHS.has(pathname)) {
+        const url = req.nextUrl.clone();
+        url.pathname = pathname.replace(/\/waiting-list$/, '/onboarding');
+        return NextResponse.redirect(url, 308);
     }
 
     if (OLD_TERMS_PATHS.has(pathname)) {
@@ -224,6 +285,15 @@ export default function proxy(req: NextRequest) {
     }
 
     const { locale, path } = splitLocale(pathname);
+
+    const vanityTarget = VANITY_REDIRECTS[path];
+    if (vanityTarget) {
+        const url = req.nextUrl.clone();
+        const { pathname: targetPath, hash } = localizeTarget(vanityTarget, locale ?? 'en');
+        url.pathname = targetPath;
+        url.hash = hash;
+        return NextResponse.redirect(url, 308);
+    }
 
     if (locale) {
         // Locale prefixes only exist for the public pages. Anything else (a stray
