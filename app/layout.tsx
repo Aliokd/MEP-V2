@@ -17,10 +17,11 @@ import { pickLocale } from '@/lib/content';
 
 // Until now the app shipped Next's bare default viewport tag, which left three
 // mobile-browser problems open:
-// - maximumScale: 1 stops iOS Safari's auto-zoom when focusing inputs styled under
-//   16px (the page would jump-zoom on every small input and never zoom back).
-//   Pinch-zoom still works — iOS has ignored maximum-scale for user gestures since
-//   iOS 10, and Android's "force enable zoom" accessibility setting overrides it.
+// - iOS Safari's auto-zoom on inputs styled under 16px (the page would jump-zoom
+//   on every small input and never zoom back) is handled in globals.css, which
+//   sizes text fields to 16px on touch screens. It used to be maximumScale: 1
+//   here, which Android Chrome and Firefox honour by disabling pinch-zoom for
+//   the whole site; iOS ignores it, so it only ever cost Android users zoom.
 // - viewportFit: 'cover' opts into env(safe-area-inset-*) so bottom-anchored bars
 //   can pad themselves clear of the iPhone home indicator instead of sitting under it.
 // - themeColor tints Android Chrome / Safari 15+ browser chrome to the brand paper
@@ -62,7 +63,9 @@ const fraunces = Fraunces({
 export const viewport: Viewport = {
     width: 'device-width',
     initialScale: 1,
-    maximumScale: 1,
+    // No maximumScale: Android Chrome and Firefox honour it and it would
+    // switch pinch-zoom off for the whole site. The iOS input auto-zoom it
+    // was meant to stop is handled by keeping inputs at 16px.
     viewportFit: 'cover',
     themeColor: '#FAF9F5',
 };

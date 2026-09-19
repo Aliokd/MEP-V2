@@ -132,13 +132,16 @@ const HeroSection = () => {
                     className="w-full rounded-none md:rounded-[32px] relative overflow-hidden flex"
                 >
                     <video 
-                        src="/videos/hero_video.webm" 
                         autoPlay 
                         loop 
                         muted 
                         playsInline
                         className="w-full h-auto block scale-[1.01]"
-                    />
+                    >
+                        <source src="/videos/hero_video.webm" type="video/webm" />
+                        {/* Safari before 16 (and iOS before 17.4) cannot decode WebM; H.264 is the one format every browser plays. */}
+                        <source src="/videos/hero_video.h264.mp4" type="video/mp4" />
+                    </video>
                 </motion.div>
             </div>
         </section>
@@ -450,6 +453,8 @@ const AISection = () => {
                     className="w-full h-auto block select-none pointer-events-none scale-[1.02] origin-center"
                 >
                     <source src="/assets/2nd animation AI.webm" type="video/webm" />
+                    {/* Safari before 16 (and iOS before 17.4) cannot decode WebM; H.264 is the one format every browser plays. */}
+                    <source src="/assets/2nd animation AI.mp4" type="video/mp4" />
                 </video>
             </div>
         </section>

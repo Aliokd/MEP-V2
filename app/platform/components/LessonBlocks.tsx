@@ -151,6 +151,7 @@ export default function LessonBlocks({
                             <video
                                 key={block.id}
                                 controls
+                                playsInline
                                 preload="metadata"
                                 poster={block.posterUrl || undefined}
                                 src={block.url}

@@ -226,6 +226,7 @@ export default function StayAheadSheet({ cardTitle, sessions, locale, t, onClose
                                 {s.videoUrl ? (
                                     <video
                                         controls
+                                        playsInline
                                         // Nothing is fetched until it is played: the
                                         // whole sequence is on the page at once.
                                         preload="none"

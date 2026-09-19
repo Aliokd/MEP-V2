@@ -578,7 +578,7 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, compl
             {typeof document !== 'undefined' && createPortal(
                 <div
                     ref={barRef}
-                    className="fixed inset-x-0 bottom-0 z-40 space-y-3 rounded-t-[32px] bg-[#DCDDD4]/45 px-4 pb-4 pt-4 backdrop-blur-2xl backdrop-saturate-150 sm:px-6"
+                    className="fixed inset-x-0 bottom-0 z-40 space-y-3 rounded-t-[32px] bg-[#DCDDD4]/45 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-2xl backdrop-saturate-150 sm:px-6"
                 >
                     {/* Not alongside the unavailable notice: that notice already
                         says what happened and what to do, and "try again" under

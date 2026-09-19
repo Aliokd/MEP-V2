@@ -10,7 +10,9 @@
     "frameworksBackend": {
       "region": "us-central1",
       "timeoutSeconds": 120,
-      "memory": "512MiB"
+      "memory": "512MiB",
+      "maxInstances": 50,
+      "preserveExternalChanges": true
     },
     "headers": [
       {

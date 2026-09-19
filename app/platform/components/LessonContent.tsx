@@ -105,6 +105,7 @@ export default function LessonContent({
                     ref={videoRef}
                     key={lesson.videoUrl}
                     src={lesson.videoUrl}
+                    playsInline
                     // Native controls only once it is running. While the poster is up
                     // the custom overlay below is the play button; `controls` there put
                     // a second one in the control bar — and on Android Chrome a third,

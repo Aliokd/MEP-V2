@@ -30,6 +30,21 @@
         cursor: text;
     }
 
+    /* iOS Safari zooms the page when a text field under 16px gets focus, and
+       never zooms back. The viewport used to carry maximumScale: 1 to stop that,
+       which Android Chrome and Firefox honour by switching pinch-zoom off for the
+       whole site. Sizing the fields themselves on touch screens keeps both: no
+       focus jump on iPhone, and zoom for everyone who needs it. */
+    @media (pointer: coarse) {
+        input:where(:not([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="image"])),
+        textarea,
+        select,
+        [contenteditable="true"],
+        [contenteditable=""] {
+            font-size: max(16px, 1em);
+        }
+    }
+
     .dark body {
         @apply bg-charcoal text-alabaster;
     }
