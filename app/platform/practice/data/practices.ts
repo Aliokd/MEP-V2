@@ -29,11 +29,15 @@ export interface PracticeDefinition {
     videoUrl?: string;
     posterUrl?: string;
     /**
-     * The intro clip has not been recorded. The card still shows its play
-     * button — the clip is coming, and dropping the control would move the
-     * title every time one lands — but the button is inert and says so. Set
-     * this rather than clearing videoUrl: the placeholder URL is what the real
-     * recording will replace, and losing it loses the note of where it goes.
+     * The clip at `videoUrl` is not this practice's own walkthrough — it is a
+     * Learn chapter standing in. The card still shows its play button, and the
+     * button still presses; what it does is say the clip is coming rather than
+     * open the stand-in. Set this rather than clearing videoUrl: the placeholder
+     * URL is what the real recording will replace, and losing it loses the note
+     * of where it goes.
+     *
+     * A practice with no videoUrl at all behaves identically, so this only
+     * needs setting where there is a URL to suppress.
      */
     videoPending?: boolean;
     /** false → the card shows "coming soon" and cannot be started. */
@@ -89,6 +93,9 @@ export const PRACTICES: PracticeDefinition[] = [
         time: '25 min',
         videoUrl: `${VIDEO_DIR}/song-structure-v2.compressed.mp4`,
         posterUrl: `${VIDEO_DIR}/song-structure-v2-poster.jpg`,
+        // A Learn chapter standing in, not a walkthrough of this exercise, so
+        // the play button says the clip is coming rather than opening it.
+        videoPending: true,
         available: true,
     },
     {
@@ -101,6 +108,8 @@ export const PRACTICES: PracticeDefinition[] = [
         time: '18 min',
         videoUrl: `${VIDEO_DIR}/verse.compressed.mp4`,
         posterUrl: `${VIDEO_DIR}/verse-poster.jpg`,
+        // Likewise borrowed from Learn until this practice has its own.
+        videoPending: true,
         available: true,
     },
     {
@@ -140,8 +149,116 @@ export const PRACTICES: PracticeDefinition[] = [
         progress: 0,
         score: 0,
         time: '10 min',
-        // No walkthrough shot yet, and no placeholder clip either: the card
-        // shows no play button at all until videoUrl/posterUrl are filled in.
+        // No walkthrough shot yet, and no placeholder clip borrowed either. The
+        // card still carries a play button, which says the clip is coming —
+        // no videoPending needed, a missing videoUrl reads the same way.
+        available: true,
+    },
+    {
+        // Moved up from eighth to be the fifth practice built. Like Chord
+        // progressions it needs no content: both drums are synthesised.
+        name: 'Rhythm and phrasing',
+        nameKey: 'practice.rhythm_and_phrasing',
+        goalKey: 'practice.goal_rhythm_and_phrasing',
+        level: 'beginner',
+        progress: 0,
+        score: 0,
+        time: '10 min',
+        available: true,
+    },
+    {
+        // Moved up from the tail of the roadmap to be the sixth practice
+        // built: a theme, a pile of notes, and the notes tapped into lines.
+        // Draws its themes from the same console library Composing verses does.
+        name: 'Writing from a feeling',
+        nameKey: 'practice.writing_from_a_feeling',
+        goalKey: 'practice.goal_writing_from_a_feeling',
+        level: 'beginner',
+        progress: 0,
+        score: 0,
+        time: '15 min',
+        available: true,
+    },
+    {
+        // New to the catalogue, the seventh built: a given phrase and the
+        // phrase that answers it, on Melody's grid. The sixteenth entry
+        // overall, so the menu, capped at fifteen, now stops one short of
+        // the roadmap's tail.
+        name: 'Developing a melody',
+        nameKey: 'practice.developing_a_melody',
+        goalKey: 'practice.goal_developing_a_melody',
+        // From here on the practices build on the first six, and are
+        // labelled for it.
+        level: 'intermediate',
+        progress: 0,
+        score: 0,
+        time: '10 min',
+        available: true,
+    },
+    {
+        // New to the catalogue, the eighth built: a plain progression given,
+        // and the sevenths, suspensions and borrowed chords to develop it
+        // with, on Chord progressions' bars. The seventeenth entry overall.
+        name: 'Developing a progression',
+        nameKey: 'practice.developing_a_progression',
+        goalKey: 'practice.goal_developing_a_progression',
+        level: 'intermediate',
+        progress: 0,
+        score: 0,
+        time: '10 min',
+        available: true,
+    },
+    {
+        // New to the catalogue, the ninth built: a feel given — pattern and
+        // tempo — and the bar changed until it moves your way, on Rhythm's
+        // grid with a snare row added. The eighteenth entry overall.
+        name: 'Developing a rhythm',
+        nameKey: 'practice.developing_a_rhythm',
+        goalKey: 'practice.goal_developing_a_rhythm',
+        level: 'intermediate',
+        progress: 0,
+        score: 0,
+        time: '10 min',
+        available: true,
+    },
+    {
+        // New to the catalogue, the tenth built: a beginning given — two
+        // lines — and the lines that follow written on Writing from a
+        // feeling's line builder, with a row of words to reach for. The
+        // nineteenth entry overall.
+        name: 'Finishing a verse',
+        nameKey: 'practice.finishing_a_verse',
+        goalKey: 'practice.goal_finishing_a_verse',
+        level: 'intermediate',
+        progress: 0,
+        score: 0,
+        time: '15 min',
+        available: true,
+    },
+    {
+        // New to the catalogue, the eleventh built: four bars of chords given
+        // and a melody written over them on Melody's grid, the two heard and
+        // rendered together. The twentieth entry overall.
+        name: 'Melody over chords',
+        nameKey: 'practice.melody_over_chords',
+        goalKey: 'practice.goal_melody_over_chords',
+        level: 'intermediate',
+        progress: 0,
+        score: 0,
+        time: '10 min',
+        available: true,
+    },
+    {
+        // New to the catalogue, the twelfth built: a whole kit — hat, snare,
+        // kick, clap, tom — in one of two sounds, on Rhythm's grid, with a
+        // bar dealt on request. The twenty-first entry overall.
+        name: 'Build a beat',
+        nameKey: 'practice.build_a_beat',
+        goalKey: 'practice.goal_build_a_beat',
+        level: 'intermediate',
+        progress: 0,
+        score: 0,
+        time: '10 min',
         available: true,
     },
     {
@@ -163,6 +280,11 @@ export const PRACTICES: PracticeDefinition[] = [
         name: 'Free hand session',
         nameKey: 'practice.free_hand_session',
         goalKey: 'practice.goal_free_hand_session',
+        // Its promised day (15 September 2026) has come and gone with the
+        // practice unbuilt, so, like the one in front of it, it says "soon"
+        // rather than counting to a day nothing ships on. It keeps its slot,
+        // so the dates behind it hold.
+        undated: true,
         level: 'all levels',
         progress: 0,
         score: 0,
@@ -179,12 +301,10 @@ export const PRACTICES: PracticeDefinition[] = [
      */
     ...planned('Finding hooks', 'finding_hooks', 'beginner'),
     ...planned('Rhyme without cliché', 'rhyme_without_cliche', 'intermediate'),
-    ...planned('Rhythm and phrasing', 'rhythm_and_phrasing', 'intermediate'),
     ...planned('Telling a story', 'telling_a_story', 'intermediate'),
     ...planned('Imagery and detail', 'imagery_and_detail', 'intermediate'),
     ...planned('Titles that stick', 'titles_that_stick', 'beginner'),
     ...planned('Bridges that turn', 'bridges_that_turn', 'advanced'),
-    ...planned('Writing from a feeling', 'writing_from_a_feeling', 'all levels'),
     ...planned('Co-writing session', 'co_writing_session', 'all levels'),
 ];
 

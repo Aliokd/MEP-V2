@@ -102,15 +102,9 @@ const ART: Record<string, Shape[]> = {
         { kind: 'poly', points: tri(134, 68, 162, 68, 148, 98), o: 0.68 },
     ],
 
-    // Long and short strokes against a steady pulse.
-    'Rhythm and phrasing': [
-        { kind: 'rect', x: 38, y: 76, w: 9, h: 68, o: 0.8 },
-        { kind: 'rect', x: 57, y: 76, w: 9, h: 68, o: 0.3 },
-        { kind: 'rect', x: 76, y: 76, w: 22, h: 68, o: 0.6 },
-        { kind: 'rect', x: 108, y: 76, w: 9, h: 68, o: 0.25 },
-        { kind: 'rect', x: 127, y: 76, w: 34, h: 68, o: 0.85 },
-        { kind: 'rect', x: 171, y: 76, w: 9, h: 68, o: 0.35 },
-    ],
+    // Build a beat is drawn in CUSTOM below: its fan needs gradients.
+
+    // Rhythm and phrasing is drawn in CUSTOM below: a pyramid needs gradients.
 
     // Rise, peak, and settle — the arc every story walks.
     'Telling a story': [
@@ -150,14 +144,19 @@ const ART: Record<string, Shape[]> = {
         { kind: 'rect', x: 84, y: 89, w: 52, h: 52, o: 0.62, rot: 44 },
     ],
 
-    // A feeling radiating outward from a warm centre, no edges anywhere.
-    'Writing from a feeling': [
-        { kind: 'circle', cx: 110, cy: 112, r: 66, o: 0.09 },
-        { kind: 'circle', cx: 110, cy: 112, r: 52, o: 0.16 },
-        { kind: 'circle', cx: 110, cy: 112, r: 39, o: 0.26 },
-        { kind: 'circle', cx: 110, cy: 112, r: 26, o: 0.42 },
-        { kind: 'circle', cx: 110, cy: 112, r: 14, o: 0.72 },
-    ],
+    // Writing from a feeling is drawn in CUSTOM below: its petals need gradients.
+
+    // Developing a progression is drawn in CUSTOM below: its diamonds fade.
+
+    // Eight squares sharing one corner, each a step in from the last and a
+    // step darker: the same shape restated, growing toward its source. That
+    // is what developing a melody is, one phrase answered by a closer one.
+    // The outermost is barely there, and the innermost nearly solid.
+    'Developing a melody': Array.from({ length: 8 }, (_, i) => {
+        const size = 180 - i * 20;
+        const o = Math.round((0.06 + Math.pow(i / 7, 1.6) * 0.86) * 1000) / 1000;
+        return { kind: 'rect', x: 20, y: 200 - size, w: size, h: size, o } as Shape;
+    }),
 
     // A circle and a square finding the one place they agree.
     'Co-writing session': [
@@ -253,6 +252,250 @@ const CUSTOM: Record<string, (uid: string) => ReactNode> = {
     ),
 
     /*
+     * A pyramid, lit from one side: a tall triangle split down its axis into
+     * a lighter face and a deeper one. A pulse is a peak and a fall, and a
+     * bar is the same shape repeated, so the one shape is the practice. The
+     * two faces are kept nearly flat, one plainly lighter than the other:
+     * it is the edge between them that makes a pyramid read, and a fade
+     * that ran to nothing softened it away. Gradients in user space, one
+     * per face, both running apex to base.
+     *
+     * Geometry: apex (110,28), base from (26,196) to (194,196), the axis at
+     * x=110.
+     */
+    'Rhythm and phrasing': (uid) => (
+        <>
+            <defs>
+                {/* Heavy stops: periwinkle is a pale colour, and the card
+                    shows the drawing at reduced opacity. */}
+                {/* The lit face thins toward its foot, but never to nothing:
+                    the base edge has to stay. */}
+                <linearGradient id={`${uid}-lit`} gradientUnits="userSpaceOnUse" x1="110" y1="28" x2="68" y2="196">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.62" />
+                    <stop offset="0.55" stopColor="currentColor" stopOpacity="0.44" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.14" />
+                </linearGradient>
+                <linearGradient id={`${uid}-shade`} gradientUnits="userSpaceOnUse" x1="110" y1="28" x2="152" y2="196">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="1" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.88" />
+                </linearGradient>
+            </defs>
+            {/* The lit face */}
+            <polygon points={tri(110, 28, 26, 196, 110, 196)} fill={`url(#${uid}-lit)`} />
+            {/* The shaded face */}
+            <polygon points={tri(110, 28, 110, 196, 194, 196)} fill={`url(#${uid}-shade)`} />
+        </>
+    ),
+
+    /*
+     * Three petals through one centre: the same ellipse turned three ways,
+     * each full at one tip and gone by the other, so where they cross the
+     * translucency stacks into a soft, edgeless bloom. A feeling has no
+     * outline, only a centre and directions it leans, which is what this is.
+     * Monochrome like every card here: the reference had three colours, and
+     * this has one in three weights.
+     *
+     * One gradient serves all three: it is declared in user space along the
+     * ellipse's long axis, and user space rotates with each group.
+     */
+    'Writing from a feeling': (uid) => (
+        <>
+            <defs>
+                {/* The far tip keeps a little weight rather than vanishing, so
+                    each petal's edge stays readable where it leaves the bloom. */}
+                <linearGradient id={`${uid}-petal`} gradientUnits="userSpaceOnUse" x1="200" y1="110" x2="20" y2="110">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.8" />
+                    <stop offset="0.45" stopColor="currentColor" stopOpacity="0.44" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.16" />
+                </linearGradient>
+            </defs>
+            {[0, 60, 120].map(angle => (
+                <g key={angle} transform={`rotate(${angle} 110 110)`}>
+                    <ellipse cx="110" cy="110" rx="90" ry="48" fill={`url(#${uid}-petal)`} />
+                </g>
+            ))}
+        </>
+    ),
+
+    /*
+     * Two diamonds, one over the other, sharing a smaller diamond where they
+     * cross: a plain progression and the same one made richer, and the
+     * overlap is where both are true at once. Each is light at its outer tip
+     * and gains weight toward the crossing, so the crossing, where the two
+     * stack, is the darkest thing on the card. The upper one is the heavier.
+     * Gradients in user space, one per diamond, each running tip to tip.
+     *
+     * Geometry: both diamonds 130 across, centred on x=110; the upper one
+     * about y=78, the lower about y=142, so they share a 66px-tall diamond.
+     */
+    'Developing a progression': (uid) => (
+        <>
+            <defs>
+                <linearGradient id={`${uid}-upper`} gradientUnits="userSpaceOnUse" x1="0" y1="13" x2="0" y2="143">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.3" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.9" />
+                </linearGradient>
+                <linearGradient id={`${uid}-lower`} gradientUnits="userSpaceOnUse" x1="0" y1="207" x2="0" y2="77">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.14" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.62" />
+                </linearGradient>
+            </defs>
+            {/* The lower diamond, light at its foot */}
+            <polygon points="110,77 175,142 110,207 45,142" fill={`url(#${uid}-lower)`} />
+            {/* The upper diamond, light at its head, heavy where it meets the other */}
+            <polygon points="110,13 175,78 110,143 45,78" fill={`url(#${uid}-upper)`} />
+        </>
+    ),
+
+    /*
+     * A heart made of the plain shapes: a square turned on its corner and
+     * two circles sitting on its upper sides. None of the parts is a heart;
+     * together they are one, which is what finishing a verse is: the lines
+     * that were given and the lines you add, reading as a single thing.
+     * Every part is translucent, so the circles keep their outlines where
+     * they cross the square and each other, and the weight builds in the
+     * overlaps. One fade serves all three, full at the top and thinning to
+     * the point.
+     *
+     * Geometry: the square is 100 a side about (110,118), so its corners sit
+     * at (110,47), (181,118), (110,189) and (39,118); the circles are r=50
+     * on the midpoints of its upper sides, (74.5,82.5) and (145.5,82.5).
+     */
+    'Finishing a verse': (uid) => (
+        <>
+            <defs>
+                <linearGradient id={`${uid}-heart`} gradientUnits="userSpaceOnUse" x1="0" y1="32" x2="0" y2="189">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.7" />
+                    <stop offset="0.55" stopColor="currentColor" stopOpacity="0.46" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.2" />
+                </linearGradient>
+            </defs>
+            {/* The square on its corner: the point of the heart */}
+            <polygon points="110,47 181,118 110,189 39,118" fill={`url(#${uid}-heart)`} />
+            {/* The two lobes, whole, so their circles read */}
+            <circle cx="74.5" cy="82.5" r="50" fill={`url(#${uid}-heart)`} />
+            <circle cx="145.5" cy="82.5" r="50" fill={`url(#${uid}-heart)`} />
+        </>
+    ),
+
+    /*
+     * Two quarter discs from opposite corners of one square, crossing. The
+     * disc from the top-left corner is the chords, the ground everything
+     * sits on; the disc from the bottom-right is the melody laid over it;
+     * and where they overlap, the two stack, which is the two heard
+     * together. Each disc fades from its own corner toward the far one.
+     * Gradients in user space, one per disc. A drawn lens once marked the
+     * overlap; the overlap marks itself, and the lens was one shape too
+     * many.
+     *
+     * Geometry: the square is 30..190. The discs are r=146 about (30,30)
+     * and (190,190), stopping short of the far corners so the two arcs
+     * stay visible as arcs.
+     */
+    'Melody over chords': (uid) => (
+        <>
+            <defs>
+                {/* The upper disc runs to nothing at its far end, so the
+                    lower one shows through where they cross; the lower one
+                    keeps a trace at its far end, so its arc is still there. */}
+                <linearGradient id={`${uid}-ground`} gradientUnits="userSpaceOnUse" x1="30" y1="30" x2="176" y2="176">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.72" />
+                    <stop offset="0.5" stopColor="currentColor" stopOpacity="0.26" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id={`${uid}-over`} gradientUnits="userSpaceOnUse" x1="190" y1="190" x2="44" y2="44">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.72" />
+                    <stop offset="0.5" stopColor="currentColor" stopOpacity="0.3" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.08" />
+                </linearGradient>
+            </defs>
+            {/* The chords: from the top-left corner, sweeping toward the far corners */}
+            <path d="M 30 30 H 176 A 146 146 0 0 1 30 176 Z" fill={`url(#${uid}-ground)`} />
+            {/* The melody: from the bottom-right corner, sweeping the other way */}
+            <path d="M 190 190 V 44 A 146 146 0 0 0 44 190 Z" fill={`url(#${uid}-over)`} />
+        </>
+    ),
+
+    /*
+     * A bird on a circle: a body that is one diagonal band, its tail
+     * running out past the circle at the lower left and its head rounding
+     * off at the upper right into a short beak. Above the body the circle
+     * is light, below it heavy. The one figure on the card set, kept
+     * because the reference is the figure: a bird is a beat, small and
+     * steady and always the same shape. The circle takes one gradient,
+     * light at its upper-left shoulder and full at its lower-right; the
+     * bird takes another, full at the head and thinning down the body to
+     * the tail, so it fades the way everything else on the cards does.
+     *
+     * Geometry: the circle is r=62 about (120,112). The body is traced from
+     * the reference at that scale: the back runs at 45° from the tail's
+     * left corner (35,172) to the head at (132,74), domes over to the
+     * shoulder (193,76), points to the beak (204,89), comes back under the
+     * chin (189,98) and round the throat, bulging down into the circle, to
+     * (135,97), then down the underside, parallel to the back, to the
+     * tail's right corner (65,172).
+     */
+    'Build a beat': (uid) => (
+        <>
+            <defs>
+                {/* Heavy stops: periwinkle is pale, and the card shows the
+                    drawing at reduced opacity. */}
+                <linearGradient id={`${uid}-disc`} gradientUnits="userSpaceOnUse" x1="76" y1="68" x2="164" y2="156">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.1" />
+                    <stop offset="0.5" stopColor="currentColor" stopOpacity="0.3" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.92" />
+                </linearGradient>
+                {/* Head to tail, along the body's own diagonal */}
+                <linearGradient id={`${uid}-bird`} gradientUnits="userSpaceOnUse" x1="190" y1="80" x2="40" y2="172">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="1" />
+                    <stop offset="0.5" stopColor="currentColor" stopOpacity="0.84" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.5" />
+                </linearGradient>
+            </defs>
+            <circle cx="120" cy="112" r="62" fill={`url(#${uid}-disc)`} />
+            <path
+                d="M 35.3 171.9 L 131.8 73.6 Q 164 44 193 76 L 204 89 L 189 98 Q 162 110 134.8 97.2 L 64.8 171.9 Z"
+                fill={`url(#${uid}-bird)`}
+            />
+        </>
+    ),
+
+    /*
+     * Two pills interlocked: one rounded at its foot and fading away upward,
+     * the other rounded at its head and fading away downward, overlapping
+     * down the middle. The same shape twice, turned over and moved along,
+     * which is what a rhythm is: a figure and its answer, the weight landing
+     * at opposite ends. Where they overlap the two fades stack. Gradients in
+     * user space, one per pill, each running from its rounded end.
+     *
+     * Geometry: both pills 100 wide by 160 tall in a 30..190 square; the
+     * left one spans x 30..130, the right x 90..190, so they share a 40px
+     * column. Each cap is a half-circle of radius 50.
+     */
+    'Developing a rhythm': (uid) => (
+        <>
+            <defs>
+                {/* Heavy stops: sage is the palest tint on the set, and the
+                    card shows the drawing at reduced opacity. */}
+                <linearGradient id={`${uid}-up`} gradientUnits="userSpaceOnUse" x1="0" y1="190" x2="0" y2="30">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="1" />
+                    <stop offset="0.55" stopColor="currentColor" stopOpacity="0.72" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.14" />
+                </linearGradient>
+                <linearGradient id={`${uid}-down`} gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="190">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="1" />
+                    <stop offset="0.55" stopColor="currentColor" stopOpacity="0.72" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.14" />
+                </linearGradient>
+            </defs>
+            {/* The left pill: square at the top, round at the foot, full at the foot */}
+            <path d="M 30 30 H 130 V 140 A 50 50 0 0 1 30 140 Z" fill={`url(#${uid}-up)`} />
+            {/* The right pill: round at the head, square at the foot, full at the head */}
+            <path d="M 90 190 V 80 A 50 50 0 0 1 190 80 V 190 Z" fill={`url(#${uid}-down)`} />
+        </>
+    ),
+
+    /*
      * A pinwheel of nine blades — one phrase turned nine ways round a single
      * centre, which is the practice. Each blade is the same circle set on a
      * ring and eclipsed by its neighbour one step round, so what survives is a
@@ -303,6 +546,45 @@ const CUSTOM: Record<string, (uid: string) => ReactNode> = {
     },
 };
 
+/*
+ * Every drawing is made in the same 220-square, but each fills it to its
+ * own extent — a diamond pair is tall and narrow, the bird wide and low —
+ * and side by side on the cards they read as different sizes. So each one
+ * is fitted after the fact: its drawn extent, measured once, is scaled so
+ * that its longer side is FIT long and centred on the square. Nothing is
+ * stretched; a wide drawing stays wide. A drawing not listed here is shown
+ * as drawn.
+ *
+ * Extents are the drawn geometry, not the browser's bounding box: a rotated
+ * or masked group reports the box of what it was before the rotation or the
+ * mask, which overstates the pinwheel and the bloom.
+ */
+const FIT = 180;
+const EXTENT: Record<string, { x: number; y: number; w: number; h: number }> = {
+    'Master song structure': { x: 30, y: 27.5, w: 160, h: 165 },
+    'Composing verses': { x: 16, y: 16, w: 188, h: 188 },
+    'Melody variations': { x: 20, y: 20, w: 180, h: 180 },
+    'Chord progressions': { x: 15.7, y: 15.7, w: 188.6, h: 188.6 },
+    'Rhythm and phrasing': { x: 26, y: 28, w: 168, h: 168 },
+    'Writing from a feeling': { x: 20, y: 28, w: 180, h: 164 },
+    'Developing a melody': { x: 20, y: 20, w: 180, h: 180 },
+    'Developing a progression': { x: 45, y: 13, w: 130, h: 194 },
+    'Developing a rhythm': { x: 30, y: 30, w: 160, h: 160 },
+    'Finishing a verse': { x: 24.5, y: 32.5, w: 171, h: 156.5 },
+    'Melody over chords': { x: 30, y: 30, w: 160, h: 160 },
+    'Build a beat': { x: 35.3, y: 50, w: 168.7, h: 124 },
+};
+
+/** The transform that fits a listed drawing to the shared size; none for the rest. */
+function fitTransform(name: string): string | undefined {
+    const e = EXTENT[name];
+    if (!e) return undefined;
+    const s = FIT / Math.max(e.w, e.h);
+    const tx = 110 - (e.x + e.w / 2) * s;
+    const ty = 110 - (e.y + e.h / 2) * s;
+    return `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(4)})`;
+}
+
 const DEFAULT_ART: Shape[] = [
     { kind: 'circle', cx: 110, cy: 110, r: 52, o: 0.12 },
     { kind: 'circle', cx: 110, cy: 110, r: 38, o: 0.22 },
@@ -326,6 +608,30 @@ const TINT: Record<string, string> = {
     // green Master song structure already wears, and two green cards in a
     // row would read as one practice twice.
     'Chord progressions': '#C5A059',
+    // Periwinkle from the accent palette, the last of the brand's colours
+    // not already worn by a card.
+    'Rhythm and phrasing': '#A2B0DF',
+    // The reserved "vibe" pink: a practice that starts from a feeling.
+    'Writing from a feeling': '#F0A8C9',
+    // The lighter melody purple: the same family as Melody, one shade up,
+    // which is what this practice is to that one.
+    'Developing a melody': '#B79DF0',
+    // The brand's chord green, one shade up from the structure card's, which
+    // is what this practice is to Chord progressions.
+    'Developing a progression': '#86BE7F',
+    // Sage from the accent palette, the last of the brand's colours not yet
+    // worn by a card.
+    'Developing a rhythm': '#ADCDC0',
+    // The reserved lyrics blue: lyric work, in the family Composing verses
+    // wears one shade darker. It wore the accent palette's warm grey first,
+    // and at card opacity that was too pale to read.
+    'Finishing a verse': '#8EC9F0',
+    // Blossom pink from the accent palette, a shade down: melody and chords
+    // together, in the brightest colour the brand keeps for decoration. The
+    // palette's own #FBB1FF was too pale at card opacity.
+    'Melody over chords': '#E48BE9',
+    // Periwinkle a shade down from Rhythm's: the same family, the whole kit.
+    'Build a beat': '#8593CB',
 };
 
 interface PracticeIllustrationProps {
@@ -339,10 +645,13 @@ export default function PracticeIllustration({ name, className }: PracticeIllust
     const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
     const custom = CUSTOM[name];
     const tint = TINT[name];
+    // The fit wraps the drawing, gradients and masks included: they are
+    // declared in user space, and user space is what the group transforms.
+    const fit = fitTransform(name);
     if (custom) {
         return (
             <svg viewBox="0 0 220 220" className={className} style={tint ? { color: tint } : undefined} aria-hidden="true" role="presentation">
-                {custom(uid)}
+                <g transform={fit}>{custom(uid)}</g>
             </svg>
         );
     }
@@ -351,18 +660,20 @@ export default function PracticeIllustration({ name, className }: PracticeIllust
 
     return (
         <svg viewBox="0 0 220 220" className={className} style={tint ? { color: tint } : undefined} aria-hidden="true" role="presentation">
-            {shapes.map((s, i) => {
-                if (s.kind === 'circle') {
-                    return <circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill="currentColor" fillOpacity={s.o} />;
-                }
-                if (s.kind === 'poly') {
-                    return <polygon key={i} points={s.points} fill="currentColor" fillOpacity={s.o} />;
-                }
-                const rot = s.rot
-                    ? `rotate(${s.rot} ${s.x + s.w / 2} ${s.y + s.h / 2})`
-                    : undefined;
-                return <rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} fill="currentColor" fillOpacity={s.o} transform={rot} />;
-            })}
+            <g transform={fit}>
+                {shapes.map((s, i) => {
+                    if (s.kind === 'circle') {
+                        return <circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill="currentColor" fillOpacity={s.o} />;
+                    }
+                    if (s.kind === 'poly') {
+                        return <polygon key={i} points={s.points} fill="currentColor" fillOpacity={s.o} />;
+                    }
+                    const rot = s.rot
+                        ? `rotate(${s.rot} ${s.x + s.w / 2} ${s.y + s.h / 2})`
+                        : undefined;
+                    return <rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} fill="currentColor" fillOpacity={s.o} transform={rot} />;
+                })}
+            </g>
         </svg>
     );
 }

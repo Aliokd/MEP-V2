@@ -5,13 +5,13 @@ import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 /**
- * When Deep dive opens — 40 days from 2026-08-15, when it was set.
+ * When Deep dive opens — 40 days from 2026-09-19, when it was last pushed.
  *
  * A fixed date on purpose: the previous countdown was `Date.now() + n days`
  * evaluated at mount, so it restarted on every page load and never actually
  * counted down. Move this date to change the deadline.
  */
-const DEEP_DIVE_LAUNCH_MS = Date.parse('2026-09-24T00:00:00Z');
+const DEEP_DIVE_LAUNCH_MS = Date.parse('2026-10-29T00:00:00Z');
 
 function formatCountdown(remainingMs: number) {
     const clamped = Math.max(0, remainingMs);

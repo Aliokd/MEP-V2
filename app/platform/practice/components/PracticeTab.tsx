@@ -12,10 +12,21 @@ import SongPill from './SongPill';
 import { usePracticeLibrary, useThemeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
 import VerseDemo from './VerseDemo';
-import MelodyVariation from './MelodyVariation';
+import StructureDemo from './StructureDemo';
+import MelodyWriter from './MelodyWriter';
 import MelodyDemo from './MelodyDemo';
+import MelodyDeveloper from './MelodyDeveloper';
+import ChordDeveloper from './ChordDeveloper';
+import RhythmDeveloper from './RhythmDeveloper';
+import FinishVerse from './FinishVerse';
+import MelodyOverChords from './MelodyOverChords';
+import BeatBuilder from './BeatBuilder';
 import ChordProgression from './ChordProgression';
 import ChordDemo from './ChordDemo';
+import RhythmBuilder from './RhythmBuilder';
+import RhythmDemo from './RhythmDemo';
+import LyricNotes from './LyricNotes';
+import LyricsDemo from './LyricsDemo';
 import PracticeIllustration from './PracticeIllustration';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2, Info } from 'lucide-react';
@@ -199,6 +210,26 @@ export default function PracticeTab() {
     const [chosenSong, setChosenSong] = useState<ChosenSong | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    /*
+     * The desktop menu and its veil render at the document level, not under
+     * the pill: an ancestor of the pill carries a transform (framer-motion's
+     * card wrapper), and "fixed" inside a transformed ancestor is fixed to
+     * the ancestor, so a veil hung under the pill covered the content panel
+     * and left the header and sidebar sharp. At the document level the veil
+     * is the viewport. The menu then needs to know where the pill is, which
+     * is measured when it opens and again if the window resizes.
+     */
+    const pillRef = useRef<HTMLButtonElement>(null);
+    const [menuAnchor, setMenuAnchor] = useState<{ bottom: number; centerX: number } | null>(null);
+    const anchorMenu = () => {
+        const r = pillRef.current?.getBoundingClientRect();
+        if (r) setMenuAnchor({ bottom: r.bottom, centerX: r.left + r.width / 2 });
+    };
+    useEffect(() => {
+        if (!dropdownOpen) return;
+        window.addEventListener('resize', anchorMenu);
+        return () => window.removeEventListener('resize', anchorMenu);
+    }, [dropdownOpen]);
 
     /**
      * Below md the practice menu is a bottom sheet, not a dropdown hung off the
@@ -267,6 +298,14 @@ export default function PracticeTab() {
     const [showVerseDemo, setShowVerseDemo] = useState(false);
     const [showMelodyDemo, setShowMelodyDemo] = useState(false);
     const [showChordDemo, setShowChordDemo] = useState(false);
+    const [showRhythmDemo, setShowRhythmDemo] = useState(false);
+    const [showLyricsDemo, setShowLyricsDemo] = useState(false);
+    const [showDevelopDemo, setShowDevelopDemo] = useState(false);
+    const [showDevelopChordsDemo, setShowDevelopChordsDemo] = useState(false);
+    const [showDevelopRhythmDemo, setShowDevelopRhythmDemo] = useState(false);
+    const [showFinishDemo, setShowFinishDemo] = useState(false);
+    const [showChordsMelodyDemo, setShowChordsMelodyDemo] = useState(false);
+    const [showBeatDemo, setShowBeatDemo] = useState(false);
     useEffect(() => {
         setShowStructureDemo(
             openedPractice === 'Master song structure' &&
@@ -287,6 +326,38 @@ export default function PracticeTab() {
             openedPractice === 'Chord progressions' &&
             localStorage.getItem('mep-chord-demo-seen') !== 'true',
         );
+        setShowRhythmDemo(
+            openedPractice === 'Rhythm and phrasing' &&
+            localStorage.getItem('mep-rhythm-demo-seen') !== 'true',
+        );
+        setShowLyricsDemo(
+            openedPractice === 'Writing from a feeling' &&
+            localStorage.getItem('mep-lyrics-demo-seen') !== 'true',
+        );
+        setShowDevelopDemo(
+            openedPractice === 'Developing a melody' &&
+            localStorage.getItem('mep-develop-demo-seen') !== 'true',
+        );
+        setShowDevelopChordsDemo(
+            openedPractice === 'Developing a progression' &&
+            localStorage.getItem('mep-develop-chords-demo-seen') !== 'true',
+        );
+        setShowDevelopRhythmDemo(
+            openedPractice === 'Developing a rhythm' &&
+            localStorage.getItem('mep-develop-rhythm-demo-seen') !== 'true',
+        );
+        setShowFinishDemo(
+            openedPractice === 'Finishing a verse' &&
+            localStorage.getItem('mep-finish-demo-seen') !== 'true',
+        );
+        setShowChordsMelodyDemo(
+            openedPractice === 'Melody over chords' &&
+            localStorage.getItem('mep-chords-melody-demo-seen') !== 'true',
+        );
+        setShowBeatDemo(
+            openedPractice === 'Build a beat' &&
+            localStorage.getItem('mep-beat-demo-seen') !== 'true',
+        );
     }, [openedPractice]);
 
     /** Close a guide, and on "don't show again" make that stick. */
@@ -295,13 +366,62 @@ export default function PracticeTab() {
         if (neverAgain) safeLocalStorageSetItem(key, 'true');
     };
 
+    /*
+     * The card's play button shows the practice's how-to without starting
+     * the practice: the same guide that opens over the exercise, as a
+     * preview. One renderer serves all twelve, so the card and the exercise
+     * cannot show different guides for the same practice. "Don't show this
+     * again" from the preview retires the auto-showing the same way.
+     */
+    const [previewGuide, setPreviewGuide] = useState<string | null>(null);
+    const GUIDE_SEEN_KEY: Record<string, string> = {
+        'Master song structure': 'mep-structure-demo-off',
+        'Composing verses': 'mep-verse-demo-seen',
+        'Melody variations': 'mep-melody-demo-seen',
+        'Chord progressions': 'mep-chord-demo-seen',
+        'Rhythm and phrasing': 'mep-rhythm-demo-seen',
+        'Writing from a feeling': 'mep-lyrics-demo-seen',
+        'Developing a melody': 'mep-develop-demo-seen',
+        'Developing a progression': 'mep-develop-chords-demo-seen',
+        'Developing a rhythm': 'mep-develop-rhythm-demo-seen',
+        'Finishing a verse': 'mep-finish-demo-seen',
+        'Melody over chords': 'mep-chords-melody-demo-seen',
+        'Build a beat': 'mep-beat-demo-seen',
+    };
+    const guideFor = (name: string, onDone: () => void, onNeverAgain: () => void) => {
+        const p = { onDone, onNeverAgain };
+        switch (name) {
+            case 'Master song structure': return <StructureDemo {...p} />;
+            case 'Composing verses': return <VerseDemo {...p} />;
+            case 'Melody variations': return <MelodyDemo {...p} />;
+            case 'Chord progressions': return <ChordDemo {...p} />;
+            case 'Rhythm and phrasing': return <RhythmDemo {...p} />;
+            case 'Writing from a feeling': return <LyricsDemo {...p} />;
+            case 'Developing a melody': return <MelodyDemo variant="develop" {...p} />;
+            case 'Developing a progression': return <ChordDemo variant="develop" {...p} />;
+            case 'Developing a rhythm': return <RhythmDemo variant="develop" {...p} />;
+            case 'Finishing a verse': return <LyricsDemo variant="finish" {...p} />;
+            case 'Melody over chords': return <MelodyDemo variant="chords" {...p} />;
+            case 'Build a beat': return <RhythmDemo variant="beat" {...p} />;
+            default: return null;
+        }
+    };
+
     /** The header's info button: bring the open practice's how-to back. */
     const replayDemo: (() => void) | null =
         openedPractice === 'Master song structure' ? () => setShowStructureDemo(true)
             : openedPractice === 'Composing verses' ? () => setShowVerseDemo(true)
                 : openedPractice === 'Melody variations' ? () => setShowMelodyDemo(true)
                     : openedPractice === 'Chord progressions' ? () => setShowChordDemo(true)
-                        : null;
+                        : openedPractice === 'Rhythm and phrasing' ? () => setShowRhythmDemo(true)
+                            : openedPractice === 'Writing from a feeling' ? () => setShowLyricsDemo(true)
+                                : openedPractice === 'Developing a melody' ? () => setShowDevelopDemo(true)
+                                    : openedPractice === 'Developing a progression' ? () => setShowDevelopChordsDemo(true)
+                                        : openedPractice === 'Developing a rhythm' ? () => setShowDevelopRhythmDemo(true)
+                                            : openedPractice === 'Finishing a verse' ? () => setShowFinishDemo(true)
+                                                : openedPractice === 'Melody over chords' ? () => setShowChordsMelodyDemo(true)
+                                                    : openedPractice === 'Build a beat' ? () => setShowBeatDemo(true)
+                                                        : null;
 
     const currentMeta = getPractice(selectedPractice);
 
@@ -569,7 +689,12 @@ export default function PracticeTab() {
     useEffect(() => {
         if (isNarrow) return;
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            const target = event.target as HTMLElement;
+            // The menu itself lives in a portal, outside dropdownRef: a press
+            // on one of its rows must not close it on the mousedown before the
+            // click. The veil closes itself on click.
+            if (target.closest?.('[data-practice-menu], [data-practice-menu-veil]')) return;
+            if (dropdownRef.current && !dropdownRef.current.contains(target)) {
                 setDropdownOpen(false);
             }
         };
@@ -596,7 +721,18 @@ export default function PracticeTab() {
                     }
                 `}
             >
-                <span className="truncate">{getTranslatedPracticeName(p)}</span>
+                <span className="flex min-w-0 items-center gap-2.5">
+                    <span className="truncate">{getTranslatedPracticeName(p)}</span>
+                    {/* The level, at row size, beside the name: lighter than the
+                        card's chip, so it reads as a note on the name rather than
+                        a second label competing with it. */}
+                    <span
+                        data-practice-level
+                        className="shrink-0 rounded-full bg-stone-100/80 px-2 py-0.5 font-sans text-[11px] leading-4 text-stone-400"
+                    >
+                        {getTranslatedLevel(meta.level)}
+                    </span>
+                </span>
                 {meta.available ? (
                     /* The card's artwork at row size, so the list reads as the
                        same set of things the carousel shows. Only for practices
@@ -662,7 +798,8 @@ export default function PracticeTab() {
                             edges. flex-1 against shrink-0 arrows cannot do that; max-w
                             keeps the old ceiling on a wide screen. */}
                         <button
-                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            ref={pillRef}
+                            onClick={() => { anchorMenu(); setDropdownOpen(!dropdownOpen); }}
                             className={`${btn.secondary('bare')} h-[var(--ctl-h)] w-full gap-2.5 px-4 font-serif text-lg font-normal tracking-wide text-stone-900 md:px-6 md:text-2xl`}
                         >
                             <span className="truncate">{getTranslatedPracticeName(selectedPractice)}</span>
@@ -702,22 +839,41 @@ export default function PracticeTab() {
                             document.body
                         )}
 
-                        <AnimatePresence>
-                            {dropdownOpen && !isNarrow && (
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 z-50">
+                        {/* Desktop: the veil and the list, at the document level — see
+                            pillRef above for why. The veil blurs and dims the whole page
+                            so the list is the one thing in focus, and closes the menu on
+                            a click. The list hangs 16px under the pill, centred on it,
+                            and takes the viewport's height below that, less a margin. */}
+                        {dropdownOpen && !isNarrow && menuAnchor && typeof document !== 'undefined' && createPortal(
+                            <>
+                                <motion.div
+                                    data-practice-menu-veil
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                                    className="fixed inset-0 z-[110] bg-stone-900/20 backdrop-blur-sm"
+                                    onClick={() => setDropdownOpen(false)}
+                                />
+                                <div
+                                    className="fixed z-[111] -translate-x-1/2"
+                                    style={{ top: menuAnchor.bottom + 16, left: menuAnchor.centerX }}
+                                >
                                     <motion.div
                                         data-practice-menu
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
                                         transition={{ duration: 0.18, ease: "easeOut" }}
-                                        className="w-[min(88vw,540px)] max-h-[min(60vh,520px)] overflow-y-auto no-scrollbar bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-[24px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.10)]"
+                                        // Wide enough for a long name and its level chip: the
+                                        // list is fifteen rows, and the old 520px showed six.
+                                        style={{ maxHeight: `min(calc(100vh - ${Math.round(menuAnchor.bottom)}px - 40px), 880px)` }}
+                                        className="w-[min(92vw,640px)] overflow-y-auto no-scrollbar bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-[24px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.10)]"
                                     >
                                         {practiceRows}
                                     </motion.div>
                                 </div>
-                            )}
-                        </AnimatePresence>
+                            </>,
+                            document.body,
+                        )}
                     </div>
 
                     {/* Next Button */}
@@ -822,10 +978,15 @@ export default function PracticeTab() {
                                             level={getTranslatedLevel(currentMeta.level)}
                                             startLabel={t('practice.start_practice')}
                                             comingSoonLabel={countdownLabel(currentMeta)}
-                                            videoLabel={t('practice.why_practice').replace('{practice}', t(currentMeta.nameKey))}
-                                            videoPendingLabel={t('practice.intro_clip_coming')}
+                                            guideLabel={t('practice.card_guide')}
                                             onStart={() => setOpenedPractice(currentMeta.name)}
-                                            onPlayVideo={() => setVideoPractice(currentMeta)}
+                                            // The how-to, as a preview. A practice with a real
+                                            // walkthrough clip of its own would play that instead;
+                                            // none has one yet (see videoPending in the catalogue).
+                                            onPlayGuide={() => {
+                                                if (currentMeta.videoUrl && !currentMeta.videoPending) setVideoPractice(currentMeta);
+                                                else setPreviewGuide(currentMeta.name);
+                                            }}
                                         />
                                     </motion.div>
                                 </AnimatePresence>
@@ -876,7 +1037,7 @@ export default function PracticeTab() {
                         does. Composing verses below is the one still inlined here, and
                         it is the reason this component is as long as it is. */}
                     {openedPractice === 'Melody variations' && (
-                        <MelodyVariation key="melody-variations" onBack={() => setOpenedPractice(null)} />
+                        <MelodyWriter key="melody-variations" onBack={() => setOpenedPractice(null)} />
                     )}
 
                     {openedPractice === 'Melody variations' && showMelodyDemo && (
@@ -895,6 +1056,114 @@ export default function PracticeTab() {
                         <ChordDemo
                             onDone={() => setShowChordDemo(false)}
                             onNeverAgain={() => closeDemo('mep-chord-demo-seen', setShowChordDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 5, its own file like the three before it */}
+                    {openedPractice === 'Rhythm and phrasing' && (
+                        <RhythmBuilder key="rhythm" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Rhythm and phrasing' && showRhythmDemo && (
+                        <RhythmDemo
+                            onDone={() => setShowRhythmDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-rhythm-demo-seen', setShowRhythmDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 6, its own file like the four before it */}
+                    {openedPractice === 'Writing from a feeling' && (
+                        <LyricNotes key="lyric-notes" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Writing from a feeling' && showLyricsDemo && (
+                        <LyricsDemo
+                            onDone={() => setShowLyricsDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-lyrics-demo-seen', setShowLyricsDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 7, its own file like the five before it. Its guide
+                        is Melody's, in the variant that shows a given half. */}
+                    {openedPractice === 'Developing a melody' && (
+                        <MelodyDeveloper key="melody-developer" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Developing a melody' && showDevelopDemo && (
+                        <MelodyDemo
+                            variant="develop"
+                            onDone={() => setShowDevelopDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-develop-demo-seen', setShowDevelopDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 8, its own file like the six before it. Its guide is
+                        Chord progressions', in the variant that swaps a chord in. */}
+                    {openedPractice === 'Developing a progression' && (
+                        <ChordDeveloper key="chord-developer" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Developing a progression' && showDevelopChordsDemo && (
+                        <ChordDemo
+                            variant="develop"
+                            onDone={() => setShowDevelopChordsDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-develop-chords-demo-seen', setShowDevelopChordsDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 9, its own file like the seven before it. Its guide is
+                        Rhythm's, in the variant whose hits are the given feel. */}
+                    {openedPractice === 'Developing a rhythm' && (
+                        <RhythmDeveloper key="rhythm-developer" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Developing a rhythm' && showDevelopRhythmDemo && (
+                        <RhythmDemo
+                            variant="develop"
+                            onDone={() => setShowDevelopRhythmDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-develop-rhythm-demo-seen', setShowDevelopRhythmDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 10, its own file like the eight before it. Its guide
+                        is Writing from a feeling's, in the variant with a given beginning. */}
+                    {openedPractice === 'Finishing a verse' && (
+                        <FinishVerse key="finish-verse" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Finishing a verse' && showFinishDemo && (
+                        <LyricsDemo
+                            variant="finish"
+                            onDone={() => setShowFinishDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-finish-demo-seen', setShowFinishDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 11, its own file like the nine before it. Its guide is
+                        Melody's, in the variant with the chords above the grid. */}
+                    {openedPractice === 'Melody over chords' && (
+                        <MelodyOverChords key="melody-over-chords" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Melody over chords' && showChordsMelodyDemo && (
+                        <MelodyDemo
+                            variant="chords"
+                            onDone={() => setShowChordsMelodyDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-chords-melody-demo-seen', setShowChordsMelodyDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 12, its own file like the ten before it. Its guide is
+                        Rhythm's, in the variant with the kit's five rows. */}
+                    {openedPractice === 'Build a beat' && (
+                        <BeatBuilder key="build-a-beat" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Build a beat' && showBeatDemo && (
+                        <RhythmDemo
+                            variant="beat"
+                            onDone={() => setShowBeatDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-beat-demo-seen', setShowBeatDemo)(true)}
                         />
                     )}
 
@@ -1281,6 +1550,14 @@ export default function PracticeTab() {
             </div>
 
             {/* Practice intro clip, played like the onboarding demo video */}
+            {/* The card's preview of a practice's how-to; only ever over the
+                card, since inside the exercise the guide has its own mount. */}
+            {previewGuide && !openedPractice && guideFor(
+                previewGuide,
+                () => setPreviewGuide(null),
+                () => { setPreviewGuide(null); safeLocalStorageSetItem(GUIDE_SEEN_KEY[previewGuide], 'true'); },
+            )}
+
             {videoPractice?.videoUrl && (
                 <PracticeVideoModal
                     src={videoPractice.videoUrl}

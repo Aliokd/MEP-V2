@@ -1,4 +1,5 @@
 import { Key } from 'tonal';
+import type { KeyMode, PracticeKey } from './keys';
 
 /*
  * Practice 4 — chord progressions. The theory behind the exercise, kept apart
@@ -7,33 +8,10 @@ import { Key } from 'tonal';
  * Everything is derived from `tonal` at call time rather than tabulated: the
  * chords of a key are a fact, not content, and deriving them means a new key
  * is one line here rather than a dataset. Same reasoning as lib/chords.ts.
+ *
+ * The keys themselves live in ./keys, shared with Melody.
  */
-
-export type KeyMode = 'major' | 'minor';
-
-export interface PracticeKey {
-    /** Stable id, doubles as the display symbol ("C", "Am"). */
-    id: string;
-    tonic: string;
-    mode: KeyMode;
-}
-
-/**
- * The keys on offer, in the order a guitarist would recognise them: the open
- * major keys first, then the three minors most songs in them lean on. Nine is
- * enough to make the choice real without turning step one into a lesson.
- */
-export const PRACTICE_KEYS: PracticeKey[] = [
-    { id: 'C', tonic: 'C', mode: 'major' },
-    { id: 'G', tonic: 'G', mode: 'major' },
-    { id: 'D', tonic: 'D', mode: 'major' },
-    { id: 'A', tonic: 'A', mode: 'major' },
-    { id: 'E', tonic: 'E', mode: 'major' },
-    { id: 'F', tonic: 'F', mode: 'major' },
-    { id: 'Am', tonic: 'A', mode: 'minor' },
-    { id: 'Em', tonic: 'E', mode: 'minor' },
-    { id: 'Dm', tonic: 'D', mode: 'minor' },
-];
+export { PRACTICE_KEYS, type PracticeKey, type KeyMode } from './keys';
 
 /** How many bars the progression runs. Four is the unit songs are built from. */
 export const BAR_COUNT = 4;

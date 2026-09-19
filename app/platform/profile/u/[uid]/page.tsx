@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Check, Clock, Lock, MessageSquare, PenLine, Plus, UserPlus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -185,39 +184,48 @@ export default function SongwriterProfilePage({ params }: { params: Promise<{ ui
             )}
 
             {/* What being connected is actually for. Only here — these are the
-                two things you agreed to when you accepted each other. */}
+                two things you agreed to when you accepted each other. Both are
+                on their way, so each row says so and takes no press yet: a row
+                that promised a collab and then opened a half-built canvas would
+                say the opposite of its own label. */}
             {!isSelf && relationship === 'connected' && (
                 <div className="space-y-3 border-t border-stone-200/60 pt-7">
-                    <Link
-                        href={`/platform/create?collabWith=${uid}`}
-                        className="flex items-center justify-between gap-4 w-full bg-white border border-stone-200/70 rounded-[18px] px-5 py-4 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all cursor-pointer group"
+                    <div
+                        aria-disabled="true"
+                        className="flex items-center justify-between gap-4 w-full bg-white border border-stone-200/70 rounded-[18px] px-5 py-4"
                     >
                         <span className="min-w-0">
-                            <span className="block text-[15px] font-medium text-stone-800">
-                                {t('profile.start_collab')}
+                            <span className="flex items-center gap-2 text-[15px] font-medium text-stone-800">
+                                <span className="truncate">{t('profile.start_collab')}</span>
+                                <span className="shrink-0 rounded-full bg-[#F6F6F0] px-2 py-0.5 text-[10.5px] font-semibold text-stone-500 leading-none">
+                                    {t('common.coming_soon')}
+                                </span>
                             </span>
                             <span className="block text-xs text-stone-500 mt-0.5">
                                 {t('profile.start_collab_desc')}
                             </span>
                         </span>
-                        <PenLine size={18} className="shrink-0 text-stone-400 group-hover:text-stone-700 transition-colors" />
-                    </Link>
+                        <PenLine size={18} className="shrink-0 text-stone-300" />
+                    </div>
 
-                    <Link
-                        href={`/platform/profile/u/${uid}/chat`}
-                        className="flex items-center justify-between gap-4 w-full bg-white border border-stone-200/70 rounded-[18px] px-5 py-4 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all cursor-pointer group"
+                    <div
+                        aria-disabled="true"
+                        className="flex items-center justify-between gap-4 w-full bg-white border border-stone-200/70 rounded-[18px] px-5 py-4"
                     >
                         <span className="min-w-0">
-                            <span className="block text-[15px] font-medium text-stone-800">
-                                {t('profile.start_discussion')}
+                            <span className="flex items-center gap-2 text-[15px] font-medium text-stone-800">
+                                <span className="truncate">{t('profile.start_discussion')}</span>
+                                <span className="shrink-0 rounded-full bg-[#F6F6F0] px-2 py-0.5 text-[10.5px] font-semibold text-stone-500 leading-none">
+                                    {t('common.coming_soon')}
+                                </span>
                             </span>
                             <span className="block text-xs text-stone-500 mt-0.5 flex items-center gap-1.5">
                                 <Lock size={11} className="shrink-0" />
                                 {t('profile.start_discussion_desc')}
                             </span>
                         </span>
-                        <MessageSquare size={18} className="shrink-0 text-stone-400 group-hover:text-stone-700 transition-colors" />
-                    </Link>
+                        <MessageSquare size={18} className="shrink-0 text-stone-300" />
+                    </div>
                 </div>
             )}
         </div>

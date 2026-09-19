@@ -15,12 +15,10 @@ interface PracticeCardProps {
     startLabel: string;
     /** For unbuilt practices: "Coming in 14 days" (or plain "Coming soon"). */
     comingSoonLabel: string;
-    /** Names the intro clip, e.g. "Why Master song structure?". */
-    videoLabel: string;
-    /** Shown on the play button of a practice whose clip is not recorded yet. */
-    videoPendingLabel: string;
+    /** Names what the play button opens: the practice's how-to. */
+    guideLabel: string;
     onStart: () => void;
-    onPlayVideo: () => void;
+    onPlayGuide: () => void;
 }
 
 export default function PracticeCard({
@@ -30,12 +28,32 @@ export default function PracticeCard({
     level,
     startLabel,
     comingSoonLabel,
-    videoLabel,
-    videoPendingLabel,
+    guideLabel,
     onStart,
-    onPlayVideo,
+    onPlayGuide,
 }: PracticeCardProps) {
-    const { available, videoUrl, videoPending } = practice;
+    const { available } = practice;
+
+    /*
+     * The play button opens the practice's how-to, the same animated guide
+     * that opens over the exercise, without starting the exercise. It used
+     * to wait for a walkthrough clip that no practice had, and shake to say
+     * so; the guide is the walkthrough, and every practice has one.
+     */
+    const playButton = (
+        <button
+            type="button"
+            onClick={(e) => {
+                // The whole card is a button that starts the practice.
+                e.stopPropagation();
+                onPlayGuide();
+            }}
+            aria-label={guideLabel}
+            className={`${btn.icon('lg')} cursor-pointer`}
+        >
+            <Play className="w-5 h-5 fill-stone-900 text-stone-900 stroke-none ml-0.5" />
+        </button>
+    );
 
     return (
         // Sized against the viewport rather than a flex parent: the practice page
@@ -59,23 +77,11 @@ export default function PracticeCard({
                     </h2>
                 </div>
 
-                {/* The intro clip belongs to a practice you can actually start.
-                    Where the clip is still unshot the button holds its place but
-                    does nothing: greyed, unfocusable, and saying why on hover —
-                    a live-looking control that opens an empty player is worse
-                    than one that admits it is waiting. */}
-                {available && videoUrl && (
-                    <Tooltip label={videoPending ? videoPendingLabel : videoLabel}>
-                        <button
-                            type="button"
-                            disabled={videoPending}
-                            onClick={(e) => { e.stopPropagation(); if (!videoPending) onPlayVideo(); }}
-                            aria-label={videoPending ? videoPendingLabel : videoLabel}
-                            className={`${btn.icon('lg')} ${videoPending ? 'opacity-40' : 'cursor-pointer'}`}
-                        >
-                            <Play className="w-5 h-5 fill-stone-900 text-stone-900 stroke-none ml-0.5" />
-                        </button>
-                    </Tooltip>
+                {/* The how-to belongs to a practice you can actually start. */}
+                {available && (
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <Tooltip label={guideLabel}>{playButton}</Tooltip>
+                    </div>
                 )}
             </div>
 

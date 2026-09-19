@@ -2474,27 +2474,11 @@ export default function ConnectTab() {
 
       <ConnectTabs
         active={activeTab}
-        // Business: nothing is behind the tab yet, so what it does depends on
-        // who is pressing it. A non-member gets the Max popup — the tab is the
-        // pitch. A member is *not* sold what they already own: they land on the
-        // tab's own view, which tells them Business is coming and they're in.
-        // (It used to open the popup for everyone, members included.)
-        onChange={(tab) => {
-          if (tab === 'business' && !hasMax) {
-            setUpgradeFor('max');
-            return;
-          }
-          setActiveTab(tab);
-        }}
-        locks={{
-          // Rooms wears its Pro pill only while it's shut — once you're in, the
-          // tab is just Rooms.
-          ...(roomsLocked && !planLoading ? { rooms: 'pro' as const } : {}),
-          // Business wears Max always. It isn't a lock there, it's the name of
-          // the thing: Business *is* the Max tier, for members and not-yet-
-          // members alike.
-          business: 'max' as const,
-        }}
+        onChange={setActiveTab}
+        // Rooms and Business are being reworked. Until they return, both say
+        // "Coming soon" on the tab and take no press; their views and gates
+        // below stay in place for when they do.
+        locks={{ rooms: 'soon', business: 'soon' }}
         t={t}
       />
 

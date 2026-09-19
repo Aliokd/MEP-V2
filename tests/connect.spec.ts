@@ -44,16 +44,26 @@ test.describe('Connect Page (Community Feed)', () => {
     await expect(page.locator('a[href="/platform/create"]', { hasText: 'Create a song' })).toBeVisible();
   });
 
-  test('the room pitch lives on the Rooms tab, not the front page', async ({ page }) => {
+  test('Rooms and Business say Coming soon and take no press', async ({ page }) => {
     await page.goto('/platform/connect');
 
-    // The Pro-gated banner used to sit above the feed for everyone. It is the
-    // Rooms tab's own content now, so a visitor who never opens Rooms is never
-    // pitched — which is the point of moving it.
-    await expect(page.getByText('Rooms with professional songwriters')).toHaveCount(0);
+    // Both views are still being built, so their tabs are inert rather than
+    // hidden: the row says what Connect will hold without pretending it is
+    // there. A press must not move the selection off All.
+    for (const name of ['Rooms', 'Business']) {
+      const tab = page.getByRole('tab', { name, exact: false });
+      await expect(tab).toBeVisible();
+      await expect(tab).toBeDisabled();
+      await expect(tab).toHaveAttribute('aria-disabled', 'true');
+      await expect(tab).toContainText('Coming soon');
+      // force, because a disabled button is not clickable by design — the
+      // point is that the click lands and still changes nothing.
+      await tab.click({ force: true });
+      await expect(tab).toHaveAttribute('aria-selected', 'false');
+    }
 
-    await page.getByRole('tab', { name: 'Rooms', exact: false }).click();
-    await expect(page.getByRole('tab', { name: 'Rooms', exact: false })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText('Rooms with professional songwriters').first()).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'All', exact: false })).toHaveAttribute('aria-selected', 'true');
+    // And the Pro pitch that used to live behind Rooms is nowhere on the page.
+    await expect(page.getByText('Rooms with professional songwriters')).toHaveCount(0);
   });
 });

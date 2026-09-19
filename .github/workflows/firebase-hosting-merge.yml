@@ -56,7 +56,6 @@ jobs:
           ALT_MAIL_PASS: ${{ secrets.MAIL_PASS }}
           ALT_EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           ALT_ONECOM_PASS: ${{ secrets.ONECOM_PASS }}
-          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
           PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
           PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_PADDLE_ENV: ${{ secrets.NEXT_PUBLIC_PADDLE_ENV }}
@@ -98,15 +97,6 @@ jobs:
           # Make it fatal again, and flip that flag back on, once the secret is added.
           if [ -z "$SMTP_PASS" ]; then
             echo "::warning::SMTP_PASS is not set — ALL outbound email fails silently in this deploy. Collaboration invites by email are disabled in code to match (lib/uiFlags.ts). Add it at Settings > Secrets and variables > Actions, on the 'Secrets' tab."
-          fi
-
-          # Soft, not fatal: the songwriter map degrades to a "not set up yet"
-          # panel without it (lib/googleMaps.ts), and the city picker still
-          # works. But it is the difference between a map and a beige box, and
-          # it is a NEXT_PUBLIC_ value — inlined at build time — so it has to be
-          # here, in the build, not added later at runtime.
-          if [ -z "$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY" ]; then
-            echo "::warning::NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set — the songwriter map will show its 'not set up yet' panel in this deploy. Add it as a GitHub Actions secret with exactly that name."
           fi
 
           # Soft, not fatal, because the paywall degrades on purpose: without the
@@ -174,7 +164,6 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
           PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
           PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_PADDLE_ENV: ${{ secrets.NEXT_PUBLIC_PADDLE_ENV }}
@@ -185,7 +174,7 @@ jobs:
           NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY }}
         run: |
           : > .env
-          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS NEXT_PUBLIC_GOOGLE_MAPS_API_KEY \
+          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS \
                       PADDLE_API_KEY PADDLE_WEBHOOK_SECRET NEXT_PUBLIC_PADDLE_ENV NEXT_PUBLIC_PADDLE_CLIENT_TOKEN \
                       NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY \
                       NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY; do
@@ -207,7 +196,6 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
           PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
           PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_PADDLE_ENV: ${{ secrets.NEXT_PUBLIC_PADDLE_ENV }}

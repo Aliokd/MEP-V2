@@ -12,21 +12,30 @@ interface ChordDemoProps {
     onDone: () => void;
     /** Close and stop auto-appearing. */
     onNeverAgain: () => void;
+    /**
+     * Which practice this is guiding. Chord progressions fills an empty bar;
+     * Developing a progression swaps a plain chord in a full bar for a richer
+     * one. The scene and the copy follow, the construction does not change.
+     */
+    variant?: 'build' | 'develop';
 }
 
 /**
- * The one-step guide shown when Chord progressions is opened.
+ * The one-step guide shown when Chord progressions, or Developing a
+ * progression, is opened.
  *
- * What needs showing is the build step: a bar takes a chord from the row of
- * chips beneath it, and play runs the four bars round. So the scene is four
- * bars, three chips, and a cursor that fills the last empty bar and then
- * presses play, with the bars lighting in turn.
+ * What needs showing is one move on the bars and then play. Build: the
+ * fourth bar is empty and the cursor fills it from the chips. Develop: all
+ * four are filled and the cursor swaps the second for its seventh. Then play
+ * runs the four bars round, lighting each in turn.
  *
- * Same construction as the other three guides: one six-second CSS timeline
- * drives the cursor, the bar's fill and the playback sweep, so none can drift
- * from the others, and reduced motion gets the finished state as a still.
+ * Same construction as the other guides: one six-second CSS timeline drives
+ * the cursor, the fill and the sweep, so none can drift from the others, and
+ * reduced motion gets the finished state as a still. Every rule is written
+ * out: styled-jsx takes an expression as a value inside a rule, never as a
+ * rule of its own.
  */
-export default function ChordDemo({ onDone, onNeverAgain }: ChordDemoProps) {
+export default function ChordDemo({ onDone, onNeverAgain, variant = 'build' }: ChordDemoProps) {
     const { t } = useLanguage();
     const [mounted, setMounted] = useState(false);
     // Swipe the sheet down to dismiss (phones only — see the hook).
@@ -43,28 +52,38 @@ export default function ChordDemo({ onDone, onNeverAgain }: ChordDemoProps) {
 
     if (!mounted) return null;
 
-    // Three bars already filled, the fourth waiting: the scene shows one move,
-    // not the whole build. C G Am, and F is what the cursor brings.
-    const BARS = ['C', 'G', 'Am', null] as const;
-    const CHIPS = ['F', 'Dm', 'Em'] as const;
+    const develop = variant === 'develop';
+    /*
+     * Build: C G Am and an empty fourth bar; F is what the cursor brings.
+     * Develop: C G Am F, all given; Am7 is what the cursor swaps in for Am,
+     * the third bar — a seventh goes on the chord it belongs to, so the
+     * numeral under it reads vi7. The chip the cursor takes is always the
+     * first; the bar it lands in is the fourth when building and the third
+     * when developing.
+     */
+    const BARS = develop ? ['C', 'G', 'Am', 'F'] : ['C', 'G', 'Am', null];
+    const NUMERALS = ['I', 'V', 'vi', 'IV'];
+    const CHIPS = develop ? ['Am7', 'G7', 'Fmaj7'] : ['F', 'Dm', 'Em'];
+    const TARGET = develop ? 2 : 3;
+    const copy = develop ? 'develop_chords_demo' : 'chord_demo';
 
     return createPortal(
         // Bottom sheet below md, centred dialog from md up.
-        <div data-chord-demo className="fixed inset-0 z-[90] flex items-end justify-center p-0 md:items-center md:p-6">
+        <div data-chord-demo data-chord-demo-variant={variant} className="fixed inset-0 z-[90] flex items-end justify-center p-0 md:items-center md:p-6">
             <div className="absolute inset-0 bg-stone-950/25 backdrop-blur-[5px] sheet-backdrop-enter" onClick={onDone} />
 
             <div className="relative w-full bg-white flex flex-col gap-4 rounded-t-[26px] rounded-b-none border-0 px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto no-scrollbar bottom-sheet-enter md:max-w-md md:rounded-[20px] md:border md:border-stone-200/70 md:p-6 md:max-h-none md:overflow-visible shadow-[0_24px_60px_rgba(0,0,0,0.18)]" {...swipeHandlers} style={swipeStyle}>
                 <div>
-                    <h3 className="font-serif font-normal text-2xl text-stone-900">{t('practice.chord_demo_title')}</h3>
-                    <p className="mt-2 text-sm font-sans text-stone-500 leading-relaxed">{t('practice.chord_demo_desc')}</p>
+                    <h3 className="font-serif font-normal text-2xl text-stone-900">{t(`practice.${copy}_title`)}</h3>
+                    <p className="mt-2 text-sm font-sans text-stone-500 leading-relaxed">{t(`practice.${copy}_desc`)}</p>
                     {/* The how is above; this is the one line on why it is worth doing */}
                     <p className="mt-3 text-sm font-sans text-stone-500 leading-relaxed">
                         <span className="font-semibold text-stone-700">{t('practice.demo_why_label')}</span>{' '}
-                        {t('practice.chord_demo_why')}
+                        {t(`practice.${copy}_why`)}
                     </p>
                 </div>
 
-                {/* The scene: fill the last bar, then play */}
+                {/* The scene: one move on the bars, then play */}
                 <div className="relative rounded-[14px] bg-[#F0F0EA] px-4 py-4 select-none overflow-hidden" aria-hidden="true">
                     <div className="relative flex h-[150px] flex-col gap-3">
                         {/* Four bars */}
@@ -74,11 +93,17 @@ export default function ChordDemo({ onDone, onNeverAgain }: ChordDemoProps) {
                                     key={i}
                                     className={`cd-bar cd-bar-${i} flex h-[60px] flex-col items-center justify-center rounded-[10px] bg-white/60`}
                                 >
-                                    <span className="cd-symbol font-serif text-[1.4rem] leading-none text-stone-900">
-                                        {chord ?? <span className="cd-fill">F</span>}
+                                    <span className="cd-symbol relative font-serif text-[1.4rem] leading-none text-stone-900">
+                                        {i === TARGET ? (
+                                            <>
+                                                {/* What was there fades as what the cursor brings arrives */}
+                                                {chord && <span className="cd-was">{chord}</span>}
+                                                <span className={`cd-fill ${chord ? 'absolute inset-0 text-center' : ''}`}>{CHIPS[0]}</span>
+                                            </>
+                                        ) : chord}
                                     </span>
                                     <span className="mt-1 font-sans text-[10px] text-stone-400">
-                                        {['I', 'V', 'vi', 'IV'][i]}
+                                        {NUMERALS[i]}{develop && i === TARGET ? <span className="cd-fill">7</span> : null}
                                     </span>
                                 </div>
                             ))}
@@ -140,16 +165,15 @@ export default function ChordDemo({ onDone, onNeverAgain }: ChordDemoProps) {
             <style jsx>{`
                 /*
                  * One shared 6s clock. Beats:
-                 *   0–12%   cursor comes in and settles on the F chip
-                 *   14%     click — the chip dips, the empty bar fills with F
+                 *   0–12%   cursor comes in and settles on the first chip
+                 *   14%     click — the chip dips, the target bar takes it
                  *   16–36%  cursor travels down to Play
                  *   38%     click — playback starts
                  *   40–88%  the four bars light in turn, 12% each
                  *   94%     reset for the next loop
                  *
-                 * Cursor x/y are eyeballed against the dialog's ~400px scene,
-                 * the same approach the other guides use: the F chip sits at
-                 * roughly (150, 82) and Play at (185, 128).
+                 * Cursor x/y are eyeballed against the dialog's ~400px scene:
+                 * the first chip sits at roughly (150, 82) and Play at (185, 128).
                  */
                 .cd-cursor {
                     animation: cd-cursor-path 6s ease-in-out infinite;
@@ -189,7 +213,8 @@ export default function ChordDemo({ onDone, onNeverAgain }: ChordDemoProps) {
                     14%                { transform: scale(0.9); }
                 }
 
-                /* The fourth bar is empty until the click, then holds F */
+                /* What the cursor brings is not there until the click, then holds;
+                   what it replaces, if anything, goes at the same moment */
                 .cd-fill {
                     animation: cd-fill 6s step-end infinite;
                 }
@@ -197,6 +222,14 @@ export default function ChordDemo({ onDone, onNeverAgain }: ChordDemoProps) {
                     0%, 13%   { opacity: 0; }
                     14%, 93%  { opacity: 1; }
                     94%, 100% { opacity: 0; }
+                }
+                .cd-was {
+                    animation: cd-was 6s step-end infinite;
+                }
+                @keyframes cd-was {
+                    0%, 13%   { opacity: 1; }
+                    14%, 93%  { opacity: 0; }
+                    94%, 100% { opacity: 1; }
                 }
 
                 /* Play holds its press for the length of the run */
@@ -238,8 +271,9 @@ export default function ChordDemo({ onDone, onNeverAgain }: ChordDemoProps) {
                 /* Reduced motion: hold the finished state, no cursor */
                 @media (prefers-reduced-motion: reduce) {
                     .cd-cursor { display: none; }
-                    .cd-chip-0, .cd-fill, .cd-play, .cd-bar { animation: none; }
+                    .cd-chip-0, .cd-fill, .cd-was, .cd-play, .cd-bar { animation: none; }
                     .cd-fill { opacity: 1; }
+                    .cd-was { opacity: 0; }
                 }
             `}</style>
         </div>,
