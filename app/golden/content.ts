@@ -14,6 +14,8 @@ export const GOLDEN = {
     wallSubtitle: `${GOLDEN_TICKETS_TOTAL} songwriters, chosen by hand. One ticket each, for life.`,
     backLabel: `The ${GOLDEN_TICKETS_TOTAL} golden tickets`,
     cta: 'Take my ticket',
+    /** Stamped on a wall ticket someone has already taken. */
+    wallTaken: 'Taken',
 
     /** {name} is the first name on the ticket. */
     heroTitle: 'Hey {name}, you have been chosen to be part of Veinote.',

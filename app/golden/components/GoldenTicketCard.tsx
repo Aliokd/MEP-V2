@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import type { PublicGoldenTicket } from '@/lib/goldenTickets';
 import { GOLDEN_TICKETS_TOTAL } from '@/lib/uiFlags';
+import { GOLDEN } from '../content';
 
 /**
  * One golden ticket on the wall.
@@ -12,9 +13,12 @@ import { GOLDEN_TICKETS_TOTAL } from '@/lib/uiFlags';
  * name, the tagline and the photo sit in HTML over it so long names wrap
  * and clamp the way text should.
  *
- * An issued ticket (a person on it) is a link to their page. An empty slot
- * is the same ticket unissued: paler paper, the number, the watermark, and
- * nothing to press.
+ * An open ticket (a person on it, not yet taken) is bright and is a link to
+ * their page. A ticket already taken (claimed or redeemed) stays on the wall
+ * with the name on it but steps back: dimmer, stamped "Taken", nothing to
+ * press. A newcomer sees who has come in before them and that their own
+ * ticket is the one still lit. An empty slot is the same ticket unissued:
+ * paler paper, the number, the watermark, and nothing to press.
  */
 
 /** The page's paper colour, which the notches are "cut" with. */
@@ -136,11 +140,9 @@ function TicketArt({ number, issued, id }: { number: number; issued: boolean; id
 }
 
 export function GoldenTicketCard({ ticket }: { ticket: PublicGoldenTicket }) {
-    return (
-        <Link
-            href={`/golden/${ticket.slug}`}
-            className="group relative block aspect-[5/3] rounded-[18px] overflow-hidden shadow-[0_10px_30px_-12px_rgba(120,90,20,0.45)] transition-transform duration-300 hover:-translate-y-1"
-        >
+    const taken = ticket.status === 'claimed' || ticket.status === 'redeemed';
+    const body = (
+        <>
             <TicketArt number={ticket.number} issued id={ticket.slug} />
 
             {/* The person: photo, name, tagline, over the body of the ticket. */}
@@ -164,9 +166,41 @@ export function GoldenTicketCard({ ticket }: { ticket: PublicGoldenTicket }) {
                 </div>
             </div>
 
-            <div className="absolute top-[7%] right-[29%] w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity">
-                <ArrowRight className="w-4 h-4 stroke-[2.2px]" />
+            {taken ? (
+                // The stamp: a tilted inked frame, the way a ticket is marked used.
+                <div
+                    aria-hidden="true"
+                    className="absolute top-[8%] right-[30%] -rotate-12 rounded-md border-2 border-stone-900/55 px-2 py-0.5 text-[11px] md:text-xs font-semibold tracking-[0.18em] text-stone-900/60 select-none"
+                >
+                    {GOLDEN.wallTaken}
+                </div>
+            ) : (
+                <div className="absolute top-[7%] right-[29%] w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArrowRight className="w-4 h-4 stroke-[2.2px]" />
+                </div>
+            )}
+        </>
+    );
+
+    if (taken) {
+        return (
+            <div
+                role="img"
+                aria-label={`Ticket ${ticket.number}, taken by ${ticket.name}`}
+                className="relative aspect-[5/3] rounded-[18px] overflow-hidden opacity-55 saturate-[0.85] cursor-default select-none"
+            >
+                {body}
             </div>
+        );
+    }
+
+    return (
+        <Link
+            href={`/golden/${ticket.slug}`}
+            aria-label={`Ticket ${ticket.number}, ${ticket.name}`}
+            className="group relative block aspect-[5/3] rounded-[18px] overflow-hidden shadow-[0_10px_30px_-12px_rgba(120,90,20,0.45)] transition-transform duration-300 hover:-translate-y-1"
+        >
+            {body}
         </Link>
     );
 }
