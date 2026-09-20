@@ -44,26 +44,32 @@ test.describe('Connect Page (Community Feed)', () => {
     await expect(page.locator('a[href="/platform/create"]', { hasText: 'Create a song' })).toBeVisible();
   });
 
-  test('Rooms and Business say Coming soon and take no press', async ({ page }) => {
+  test('Rooms opens for anyone, Business sends a non-member to the upgrade', async ({ page }) => {
     await page.goto('/platform/connect');
+    // The feed is fetched before the tabs render, so wait for the row itself
+    // rather than for a tab inside a row that is not there yet.
+    await expect(page.getByRole('tablist')).toBeVisible({ timeout: 20_000 });
 
-    // Both views are still being built, so their tabs are inert rather than
-    // hidden: the row says what Connect will hold without pretending it is
-    // there. A press must not move the selection off All.
+    // Without a plan both tabs wear the tier pill. It reads "Pro", never
+    // "Max": the upper tier was renamed in the UI and only the locale key
+    // still carries the old name.
     for (const name of ['Rooms', 'Business']) {
       const tab = page.getByRole('tab', { name, exact: false });
       await expect(tab).toBeVisible();
-      await expect(tab).toBeDisabled();
-      await expect(tab).toHaveAttribute('aria-disabled', 'true');
-      await expect(tab).toContainText('Coming soon');
-      // force, because a disabled button is not clickable by design — the
-      // point is that the click lands and still changes nothing.
-      await tab.click({ force: true });
-      await expect(tab).toHaveAttribute('aria-selected', 'false');
+      await expect(tab).toBeEnabled();
+      await expect(tab).toContainText('Pro');
+      await expect(tab).not.toContainText('Max');
     }
 
-    await expect(page.getByRole('tab', { name: 'All', exact: false })).toHaveAttribute('aria-selected', 'true');
-    // And the Pro pitch that used to live behind Rooms is nowhere on the page.
-    await expect(page.getByText('Rooms with professional songwriters')).toHaveCount(0);
+    // Rooms is a view anyone may open: a non-member lands on it and is shown
+    // the locked section, which is the pitch.
+    await page.getByRole('tab', { name: 'Rooms', exact: false }).click();
+    await expect(page.getByRole('tab', { name: 'Rooms', exact: false })).toHaveAttribute('aria-selected', 'true');
+
+    // Business is the members' own. A press from anyone else opens the upgrade
+    // rather than moving them to an empty tab.
+    await page.getByRole('tab', { name: 'Business', exact: false }).click();
+    await expect(page.getByRole('tab', { name: 'Business', exact: false })).toHaveAttribute('aria-selected', 'false');
+    await expect(page.getByRole('tab', { name: 'Rooms', exact: false })).toHaveAttribute('aria-selected', 'true');
   });
 });
