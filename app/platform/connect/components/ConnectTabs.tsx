@@ -6,7 +6,7 @@ export type ConnectTab = 'all' | 'people' | 'songs' | 'rooms' | 'business';
  * What a tab's pill says. A tier name means the tier opens it; `soon` means
  * the view is not ready and the tab takes no press.
  */
-export type TabLocks = Partial<Record<ConnectTab, 'pro' | 'max' | 'soon'>>;
+export type TabLocks = Partial<Record<ConnectTab, 'pro' | 'soon'>>;
 
 interface ConnectTabsProps {
     active: ConnectTab;
@@ -63,7 +63,7 @@ export default function ConnectTabs({ active, onChange, locks, t }: ConnectTabsP
                             /* Same pill the tier banner wears, at tab scale — so the tab
                                and the banner it leads to read as one thing. */
                             <span className="inline-flex items-center rounded-full bg-gradient-to-br from-[#DFDED6] via-[#D2D1C5] to-[#C2C1B2] border border-white/70 px-2.5 py-1 text-[11px] font-semibold text-stone-900 shadow-sm leading-none">
-                                {t(lock === 'max' ? 'connect.pro.max_badge' : 'connect.pro.pro_badge')}
+                                {t('connect.pro.max_badge')}
                             </span>
                         )}
                         {/* Underline sits on the text, not the pill */}

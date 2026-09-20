@@ -125,6 +125,31 @@ export async function GET(request: Request) {
             : `MISSING: ${paddleMissing.join(', ')}. The paywall says payments are unavailable and no trial can start. See docs/paddle-setup.md.`,
     });
 
+    // PostHog read access, presence only. Advisory: without it the console's
+    // Traffic section and per-user activity say "not connected"; nothing a
+    // user sees depends on it.
+    const posthogRead = Boolean(process.env.POSTHOG_PERSONAL_API_KEY && process.env.POSTHOG_PROJECT_ID);
+    checks.push({
+        name: 'posthog_read',
+        ok: posthogRead,
+        advisory: true,
+        detail: posthogRead
+            ? `present (project ${process.env.POSTHOG_PROJECT_ID})`
+            : 'MISSING: POSTHOG_PERSONAL_API_KEY and/or POSTHOG_PROJECT_ID. The admin console shows no traffic or per-user activity until both are set.',
+    });
+
+    // The scheduler's shared secret, presence only. Advisory: without it the
+    // trial reminder job answers 503 and nobody gets the day-before email.
+    const cronSecret = Boolean(process.env.CRON_SECRET);
+    checks.push({
+        name: 'cron_secret',
+        ok: cronSecret,
+        advisory: true,
+        detail: cronSecret
+            ? 'present'
+            : 'MISSING: CRON_SECRET. /api/cron/trial-reminders refuses every call, so no-card trials get no reminder email.',
+    });
+
     // Can this environment reach Google at all, and are our pinned models real?
     if (apiKey) {
         checks.push(

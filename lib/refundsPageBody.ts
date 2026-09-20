@@ -44,7 +44,7 @@ Renewal payments are not refundable once the new period has begun, except where 
 
 ## Changing plans
 
-Moving from Pro to Max is charged on a prorated basis for the rest of the current period. Moving down takes effect at the next renewal, and the difference is not refunded for the current period.
+Moving from Veinote to Veinote Pro is charged on a prorated basis for the rest of the current period. Moving down takes effect at the next renewal, and the difference is not refunded for the current period.
 
 ## How to ask for a refund
 

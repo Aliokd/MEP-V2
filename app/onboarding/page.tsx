@@ -33,6 +33,7 @@ import OtpVerify from './components/OtpVerify';
 import InviteAccountStep from './components/InviteAccountStep';
 import TrialOffer from './components/TrialOffer';
 import WelcomeAboard from './components/WelcomeAboard';
+import { getStoredAttribution } from '@/lib/attribution';
 import { capture } from '@/lib/posthog';
 import WaitlistSecured from './components/WaitlistSecured';
 
@@ -474,6 +475,9 @@ function OnboardingPageInner() {
                     locale: language,
                     source: signupSource,
                     answers,
+                    // The ad tags the first page arrived with, if any; the
+                    // console shows them beside the account.
+                    attribution: getStoredAttribution(),
                 }),
             });
             const data = await res.json().catch(() => ({}));

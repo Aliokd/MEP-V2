@@ -6,7 +6,7 @@ import { sendMail, isMailDryRun } from "@/lib/email/send";
 import { verificationCodeEmail } from "@/lib/email/templates/verificationCode";
 import { resolveLocale } from "@/lib/email/locale";
 import { getCopyOverrides } from "@/lib/siteCopy";
-import { newUserProfile, nameFromEmail } from "@/lib/userProfileShape";
+import { newUserProfile, nameFromEmail, type SignupAttribution } from "@/lib/userProfileShape";
 import { issueCode, clearCode, isPendingOnboarding, CODE_TTL_MINUTES } from "@/lib/onboardingCodes";
 import { SIGNUPS_OPEN } from "@/lib/uiFlags";
 
@@ -74,6 +74,35 @@ function sanitizeSource(raw: unknown): string | null {
 }
 
 /**
+ * The ad tags the browser kept from its first page (lib/attribution.ts),
+ * trimmed to short plain strings. Anything else in the object is dropped.
+ */
+function sanitizeAttribution(raw: unknown): SignupAttribution | null {
+    if (!raw || typeof raw !== "object") return null;
+    const r = raw as Record<string, unknown>;
+    const str = (key: string, max = 120): string | null => {
+        const v = r[key];
+        if (typeof v !== "string") return null;
+        const cleaned = v.replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
+        return cleaned || null;
+    };
+    const out: SignupAttribution = {
+        utmSource: str("utmSource"),
+        utmMedium: str("utmMedium"),
+        utmCampaign: str("utmCampaign"),
+        utmContent: str("utmContent"),
+        utmTerm: str("utmTerm"),
+        clickId: str("clickId", 200),
+        clickIdKind: str("clickIdKind", 16),
+        referrer: str("referrer"),
+        landingPath: str("landingPath", 200),
+        capturedAt: str("capturedAt", 40),
+    };
+    const any = Object.values(out).some((v) => v !== null);
+    return any ? out : null;
+}
+
+/**
  * Whether a subscription or Paddle customer is already attached to the
  * account. Such an account is worth taking over, so its address can no
  * longer be moved before the code has proven the inbox.
@@ -138,6 +167,7 @@ export async function POST(request: Request) {
     const locale = resolveLocale(body.locale);
     const answers = sanitizeAnswers(body.answers);
     const source = sanitizeSource(body.source);
+    const attribution = sanitizeAttribution(body.attribution);
     const callerUid = await optionalUid(request);
 
     let uid: string | null = null;
@@ -203,7 +233,7 @@ export async function POST(request: Request) {
                     name,
                     email,
                     answers,
-                    signup: { method: "onboarding", source, verifiedAt: null },
+                    signup: { method: "onboarding", source, verifiedAt: null, attribution },
                 }));
                 // The public slice, mirrored the way lib/userProfile.ts does
                 // for client-made accounts.

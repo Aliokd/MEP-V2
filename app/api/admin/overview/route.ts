@@ -41,6 +41,8 @@ export const GET = withAdmin("overview.read", async () => {
         trialUsers,
         proUsers,
         maxUsers,
+        compUsers,
+        expiredUsers,
         projectsTotal,
         projects7d,
         postsTotal,
@@ -64,6 +66,8 @@ export const GET = withAdmin("overview.read", async () => {
         count((c) => c.where("tier", "==", "trial"), "users"),
         count((c) => c.where("tier", "==", "pro"), "users"),
         count((c) => c.where("tier", "==", "max"), "users"),
+        count((c) => c.where("tier", "==", "comp"), "users"),
+        count((c) => c.where("tier", "==", "free"), "users"),
         count((c) => c, "projects"),
         // Projects carry `updatedAt` and no `createdAt` — a song is created in the
         // browser and only reaches Firestore once it is saved, so there is no
@@ -131,6 +135,8 @@ export const GET = withAdmin("overview.read", async () => {
             trial: trialUsers,
             pro: proUsers,
             max: maxUsers,
+            comp: compUsers,
+            expired: expiredUsers,
             trialsExpiring7d,
         },
         content: { projectsTotal, projects7d, postsTotal, posts7d },

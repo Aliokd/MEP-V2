@@ -1352,6 +1352,15 @@
       "keep": "We will write to you personally soon. If you have questions before then, reply to this email.",
       "signoff": "With gratitude,",
       "team": "The Veinote founders"
+    },
+    "trial_ending": {
+      "subject": "Your Veinote trial ends tomorrow",
+      "greeting": "Hi,",
+      "greeting_named": "Hi {{name}},",
+      "body": "Your free days on Veinote end on {{endsOn}}. After that, the canvas waits behind a plan.",
+      "keep": "Everything you have written stays exactly where it is. Pick a plan and carry on where you left off, or let it end and come back any time.",
+      "cta": "Choose a plan",
+      "team": "The Veinote team"
     }
   },
   "practice": {

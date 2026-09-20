@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, UserPlus, RefreshCw, Eye, EyeOff, Copy, Check } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner } from "../components/ui";
+import { TIER_OPTIONS } from "@/lib/admin/tiers";
 import { LOCALES, LOCALE_LABELS, type Locale } from "@/lib/content";
 
 const MIN_PASSWORD_LENGTH = 10;
@@ -250,10 +251,9 @@ export default function CreateUserDialog({
                             <label className="flex flex-col gap-1.5">
                                 <span className="text-xs text-ink-400">Tier</span>
                                 <Select value={tier} onChange={(e) => setTier(e.target.value)}>
-                                    <option value="trial">Trial</option>
-                                    <option value="pro">Pro</option>
-                                    <option value="max">Max</option>
-                                    <option value="comp">Comped</option>
+                                    {TIER_OPTIONS.map((o) => (
+                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                    ))}
                                 </Select>
                             </label>
                             <label className="flex flex-col gap-1.5">
@@ -268,7 +268,7 @@ export default function CreateUserDialog({
 
                         {tier === "trial" && (
                             <label className="flex flex-col gap-1.5">
-                                <span className="text-xs text-ink-400">Trial length (days, 0 for none)</span>
+                                <span className="text-xs text-ink-400">Trial length (days; blank for the default 3)</span>
                                 <Input
                                     value={trialDays}
                                     onChange={(e) => setTrialDays(e.target.value)}

@@ -1330,6 +1330,15 @@
       "expiry": "Den gäller i {{minutes}} minuter.",
       "ignore": "Om du inte har registrerat dig hos Veinote kan du bortse från det här mejlet. Inget händer utan koden.",
       "team": "Veinote-teamet"
+    },
+    "trial_ending": {
+      "subject": "Din provperiod på Veinote slutar i morgon",
+      "greeting": "Hej,",
+      "greeting_named": "Hej {{name}},",
+      "body": "Dina fria dagar på Veinote slutar {{endsOn}}. Efter det väntar canvasen bakom en plan.",
+      "keep": "Allt du har skrivit ligger kvar precis där du lämnade det. Välj en plan och fortsätt där du slutade, eller låt det ta slut och kom tillbaka när du vill.",
+      "cta": "Välj en plan",
+      "team": "Veinote-teamet"
     }
   },
   "practice": {

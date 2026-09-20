@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, Badge, Button, StatTile, SkeletonRows, Spinner, EmptyState } from "../components/ui";
+import { tierLabel } from "@/lib/admin/tiers";
 
 interface Billing {
-    tiers: { trial: number; pro: number; max: number; none: number };
+    tiers: { trial: number; pro: number; max: number; comp: number; expired: number; none: number };
     statuses: Record<string, number>;
     paying: number;
     conversionRate: number;
@@ -74,9 +75,9 @@ export default function BillingPage() {
                         <StatTile
                             label="Paying accounts"
                             value={data.paying}
-                            hint={`${data.tiers.pro} Pro · ${data.tiers.max} Max${data.scheduledCancellations > 0 ? ` · ${data.scheduledCancellations} cancelling` : ""}`}
+                            hint={`${data.tiers.pro} Veinote · ${data.tiers.max} Veinote Pro · ${data.tiers.comp} lifetime${data.scheduledCancellations > 0 ? ` · ${data.scheduledCancellations} cancelling` : ""}`}
                         />
-                        <StatTile label="Trial → paid" value={`${data.conversionRate}%`} hint="of trials plus paying" />
+                        <StatTile label="Trial → paid" value={`${data.conversionRate}%`} hint={`${data.tiers.trial} on trial · ${data.tiers.expired} expired`} />
                         <StatTile label="Trials ending in 7 days" value={data.trialsExpiring7d} hint="conversion window" />
                         <StatTile
                             label="Needs attention"
@@ -118,7 +119,7 @@ export default function BillingPage() {
                                                 <span className="text-sm text-ink-100 truncate">{row.email || row.uid}</span>
                                                 <span className="text-xs text-red-300">{row.issue}</span>
                                             </div>
-                                            <Badge tone="neutral">{row.tier || "no tier"}</Badge>
+                                            <Badge tone="neutral">{tierLabel(row.tier)}</Badge>
                                             <a
                                                 href={`/admin/users?uid=${row.uid}`}
                                                 className="text-xs text-ink-400 hover:text-ink-100 shrink-0"

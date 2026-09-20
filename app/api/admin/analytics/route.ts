@@ -74,7 +74,7 @@ export const GET = withAdmin("analytics.read", async (request) => {
 
     users.docs.forEach((doc) => {
         const d = doc.data();
-        if (d.tier === "pro" || d.tier === "max") paid += 1;
+        if (d.tier === "pro" || d.tier === "max" || d.tier === "comp") paid += 1;
         if (d.answers && Object.keys(d.answers).length > 0) onboarded += 1;
         {
             const created = Date.parse(d.createdAt || "");

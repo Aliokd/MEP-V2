@@ -1330,6 +1330,15 @@
       "expiry": "Den gjelder i {{minutes}} minutter.",
       "ignore": "Hvis du ikke har registrert deg hos Veinote, kan du se bort fra denne e-posten. Ingenting skjer uten koden.",
       "team": "Veinote-teamet"
+    },
+    "trial_ending": {
+      "subject": "Prøveperioden din på Veinote slutter i morgen",
+      "greeting": "Hei,",
+      "greeting_named": "Hei {{name}},",
+      "body": "De gratis dagene dine på Veinote slutter {{endsOn}}. Etter det venter canvasen bak en plan.",
+      "keep": "Alt du har skrevet ligger akkurat der du forlot det. Velg en plan og fortsett der du slapp, eller la det slutte og kom tilbake når du vil.",
+      "cta": "Velg en plan",
+      "team": "Veinote-teamet"
     }
   },
   "practice": {

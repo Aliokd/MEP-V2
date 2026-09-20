@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, RefreshCw, X } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, Badge, Button, Input, Select, Textarea, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
+import { tierLabel } from "@/lib/admin/tiers";
 import { LOCALES, LOCALE_LABELS, type LocalizedText, type Locale } from "@/lib/content";
 
 interface Announcement {
@@ -21,7 +22,7 @@ interface Announcement {
     createdByEmail: string | null;
 }
 
-const TIERS = ["trial", "pro", "max", "comp"];
+const TIERS = ["trial", "pro", "max", "comp", "free"];
 
 export default function AnnouncementsPage() {
     const { adminFetch, can } = useAdmin();
@@ -244,7 +245,7 @@ function Composer({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
                                             : "border-ink-600 text-ink-400 hover:text-ink-100"
                                     }`}
                                 >
-                                    {tier}
+                                    {tierLabel(tier)}
                                 </button>
                             ))}
                         </div>

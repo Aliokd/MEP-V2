@@ -168,12 +168,18 @@ jobs:
           NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY }}
           NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY }}
           NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY }}
+          # Admin console reads from PostHog (Growth > Traffic, per-user activity).
+          # Server-only; empty is fine, the console then says "not connected".
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          # Shared secret Cloud Scheduler presents to /api/cron/* routes.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           : > .env
           for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS \
                       PADDLE_API_KEY PADDLE_WEBHOOK_SECRET NEXT_PUBLIC_PADDLE_ENV NEXT_PUBLIC_PADDLE_CLIENT_TOKEN \
                       NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY \
-                      NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY; do
+                      NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY                       POSTHOG_PERSONAL_API_KEY POSTHOG_PROJECT_ID CRON_SECRET; do
             VALUE="${!NAME}"
             case "$VALUE" in *"'"*)
               echo "::error::$NAME contains a single quote, which this quoted .env write cannot carry. Rotate the value or extend this step to escape it."
@@ -200,6 +206,9 @@ jobs:
           NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY }}
           NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY }}
           NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY }}
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
           # Forces the build Firebase runs to use webpack. firebase-tools spawns a
           # bare `next build` (no CLI flags) but inherits this process env, and in
           # Next 16.1 IS_WEBPACK_TEST is the only env-level webpack switch

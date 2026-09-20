@@ -4,13 +4,17 @@ import { withAdmin } from "@/lib/admin/auth";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { auditContext, writeAudit } from "@/lib/admin/audit";
 import { roleHasPermission } from "@/lib/admin/roles";
+import { ASSIGNABLE_TIERS } from "@/lib/admin/tiers";
+import { isEntitled, getPriceId, type PlanId } from "@/lib/paddle/config";
+import { getPaddle } from "@/lib/paddle/server";
+import { syncFromPaddle } from "@/lib/paddle/sync";
+import { resolveEntitlement } from "@/lib/entitlement";
 
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ uid: string }> };
 
 const DAY = 24 * 60 * 60 * 1000;
-const VALID_TIERS = ["trial", "pro", "max", "comp"];
 
 function toMillis(value: any): number | null {
     if (!value) return null;
@@ -80,7 +84,20 @@ export const GET = withAdmin("users.read", async (_request, _admin, ctx: Ctx) =>
             lastActiveAt: toMillis(d.lastActiveAt),
             billing: d.billing || null,
             sanction: d.sanction || null,
+            // How they got here: the onboarding source and, for an ad click,
+            // the campaign it came from.
+            signup: d.signup || null,
+            golden: d.golden || null,
         },
+        // What the platform itself concludes from the fields above, so the
+        // console never has to re-derive the gate and get it slightly wrong.
+        entitlement: resolveEntitlement({
+            tier: d.tier ?? null,
+            plan: d.billing?.plan ?? null,
+            subscriptionStatus: d.billing?.subscriptionStatus ?? null,
+            trialEndsAt: d.billing?.trialEndsAt ?? null,
+            createdAt: d.createdAt ?? null,
+        }),
         auth: authRecord,
         adminRole: adminSnap.exists ? adminSnap.data()?.role || null : null,
         stats: { projects, posts, reportsAgainst, reportsFiled, feedbackCount, supportCount },
@@ -109,13 +126,72 @@ export const PATCH = withAdmin("users.write", async (request, admin, ctx: Ctx) =
     const actions: string[] = [];
 
     if (body.tier !== undefined) {
-        if (!VALID_TIERS.includes(body.tier)) {
+        if (!ASSIGNABLE_TIERS.includes(body.tier)) {
             return NextResponse.json({ error: `Invalid tier "${body.tier}"` }, { status: 400 });
         }
-        update.tier = body.tier;
-        before.tier = current.tier;
-        after.tier = body.tier;
-        actions.push("tier");
+        const billing = current.billing || {};
+        const hasLiveSub = Boolean(billing.paddleSubscriptionId) && isEntitled(billing.subscriptionStatus);
+
+        // Paddle is the truth for a paying account, so a plan change on one
+        // is made in Paddle and read back, never written over locally: a
+        // local grant the next webhook would undo is worse than a refusal.
+        if (hasLiveSub && (body.tier === "pro" || body.tier === "max")) {
+            const paddle = getPaddle();
+            if (!paddle) {
+                return NextResponse.json({ error: "This account pays through Paddle and PADDLE_API_KEY is not set, so the plan cannot be changed from here" }, { status: 503 });
+            }
+            const period = billing.billingPeriod === "monthly" ? "monthly" : "yearly";
+            const priceId = getPriceId(body.tier as PlanId, period);
+            if (!priceId) {
+                return NextResponse.json({ error: `No Paddle price is configured for that plan (${period})` }, { status: 400 });
+            }
+            if (billing.plan !== body.tier) {
+                try {
+                    await paddle.subscriptions.update(billing.paddleSubscriptionId, {
+                        items: [{ priceId, quantity: 1 }],
+                        prorationBillingMode: billing.subscriptionStatus === "trialing" ? "do_not_bill" : "prorated_immediately",
+                    });
+                    await syncFromPaddle(uid);
+                } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    return NextResponse.json({ error: `Paddle refused the plan change: ${message}` }, { status: 502 });
+                }
+            }
+            before.tier = current.tier;
+            after.tier = body.tier;
+            after.viaPaddle = true;
+            actions.push("plan");
+        } else if (hasLiveSub && body.tier === "trial") {
+            // A trial cannot sit beside a live subscription: the next webhook
+            // would put the plan straight back. Cancel in Paddle first (the
+            // Subscription panel offers it), then the trial can be set.
+            return NextResponse.json({ error: "This account has a live Paddle subscription. Cancel it first, then set the trial" }, { status: 409 });
+        } else {
+            update.tier = body.tier;
+            before.tier = current.tier;
+            after.tier = body.tier;
+            actions.push("tier");
+        }
+
+        // A trial is only a trial with an end date. Setting the tier to
+        // trial with a length stamps it from now; without one, a date that
+        // exists is kept and a missing one gets the default the platform
+        // would stamp itself.
+        if (body.tier === "trial") {
+            const days = Number(body.trialDays);
+            const existing = Date.parse(billing.trialEndsAt || "");
+            let next: string | null = null;
+            if (Number.isFinite(days) && days > 0 && days <= 365) {
+                next = new Date(Date.now() + days * DAY).toISOString();
+            } else if (Number.isNaN(existing) || existing < Date.now()) {
+                next = new Date(Date.now() + 3 * DAY).toISOString();
+            }
+            if (next) {
+                update["billing.trialEndsAt"] = next;
+                before.trialEndsAt = billing.trialEndsAt || null;
+                after.trialEndsAt = next;
+            }
+        }
     }
 
     if (body.extendTrialDays !== undefined) {

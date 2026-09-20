@@ -28,6 +28,8 @@ import { ENGAGED_WINDOW_MS } from '@/lib/mindPowerScore';
 import PlatformOnboarding from './components/PlatformOnboarding';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import * as btn from './components/buttonStyles';
+import TrialEndedScreen from './components/TrialEndedScreen';
+import { useUserPlan } from '@/lib/useUserPlan';
 import { touchLastActive } from '@/lib/lastActive';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -93,6 +95,9 @@ function PlatformLayoutInner({
     const { t } = useLanguage();
     const router = useRouter();
     const pathname = usePathname();
+    // What the account may use. Read here, once, so an expired trial or a
+    // lapsed subscription is answered with the plans before any page renders.
+    const plan = useUserPlan();
     
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
@@ -507,7 +512,9 @@ function PlatformLayoutInner({
     // which took out the whole authenticated app, not just the drawer.
     useBackDismiss(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
 
-    if (loading) return (
+    // The plan is waited for too: an expired account must never see the
+    // canvas for a frame before the plans replace it.
+    if (loading || (user && plan.loading)) return (
         <div className="h-screen flex items-center justify-center bg-[#E4E4DF]">
             <div className="w-12 h-12 border-t-2 border-stone-900 rounded-full animate-spin" />
         </div>
@@ -516,6 +523,10 @@ function PlatformLayoutInner({
     if (blocked) return <AccountBlockedScreen t={t} />;
 
     if (!user) return null;
+
+    // The trial has run out, or the subscription lapsed, and no grant stands
+    // in. The plans, in place of everything, until the webhook says otherwise.
+    if (plan.access === 'expired') return <TrialEndedScreen />;
 
     const firstName = (user.displayName || '').trim().split(' ')[0] || t('navigation.my_profile');
 

@@ -112,7 +112,7 @@ export default function ProfilePage() {
     const photoInputRef = useRef<HTMLInputElement>(null);
     const photoNoticeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const { hasMax, hasPro } = useUserPlan();
+    const { isPro, source } = useUserPlan();
     const isVerified = useIsVerified(user?.uid ?? null);
     const { request: verification } = useVerificationRequest(user?.uid ?? null);
     const { songs, songsLoaded } = useMySongs(user, t);
@@ -440,8 +440,9 @@ export default function ProfilePage() {
                                     </h2>
                                     {isVerified && <VerifiedMark size={18} label={t('profile.verified_label')} />}
                                     {/* Only the upper tier is named (Pro, untranslated); the
-                                        standard plan has no label, so it gets no pill. */}
-                                    {hasMax && (
+                                        standard plan has no label, so it gets no pill. A trial
+                                        has Pro-level access but is not Pro, so no pill either. */}
+                                    {isPro && source !== 'trial' && (
                                         <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none">
                                             Pro
                                         </span>
@@ -451,7 +452,7 @@ export default function ProfilePage() {
                             </div>
 
                             {/* The way up, top right, for anyone not already there. */}
-                            {!hasMax && (
+                            {!(isPro && source !== 'trial') && (
                                 <button
                                     onClick={() => setShowMaxUpgrade(true)}
                                     aria-haspopup="dialog"

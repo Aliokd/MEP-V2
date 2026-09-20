@@ -1,4 +1,5 @@
 import { TERMS_VERSION } from "@/lib/legalVersions";
+import { defaultTrialEnd } from "@/lib/entitlement";
 
 /**
  * The users/{uid} document as it is born, built in one place.
@@ -25,10 +26,34 @@ export interface NewUserProfileInput {
         method: "onboarding";
         source: string | null;
         verifiedAt: null;
+        /** First-touch marketing attribution, as the browser captured it. */
+        attribution?: SignupAttribution | null;
     };
+    /**
+     * When the trial ends (ISO). The server stamps TRIAL_DAYS from now unless
+     * told otherwise (an invited account may get longer). Left null only by
+     * a client-side create, which the rules keep from setting it; the plan
+     * hook then asks /api/account/start-trial to stamp it.
+     */
+    trialEndsAt?: string | null;
 }
 
-export function newUserProfile({ uid, name, email, answers, signup }: NewUserProfileInput) {
+/** Where a signup came from, captured on the first page the visitor landed on. */
+export interface SignupAttribution {
+    utmSource: string | null;
+    utmMedium: string | null;
+    utmCampaign: string | null;
+    utmContent: string | null;
+    utmTerm: string | null;
+    /** Ad click ids, when present: gclid, fbclid, ttclid, msclkid. */
+    clickId: string | null;
+    clickIdKind: string | null;
+    referrer: string | null;
+    landingPath: string | null;
+    capturedAt: string | null;
+}
+
+export function newUserProfile({ uid, name, email, answers, signup, trialEndsAt }: NewUserProfileInput) {
     const now = new Date().toISOString();
     return {
         uid,
@@ -36,9 +61,9 @@ export function newUserProfile({ uid, name, email, answers, signup }: NewUserPro
         email,
         answers: answers || {},
         createdAt: now,
-        // "trial" is the tier of an account that has not paid yet. It grants
-        // nothing on its own: the trial that opens the product is the Paddle
-        // subscription's own, written into `billing` by the webhook.
+        // "trial" is the tier every account is born with: full access until
+        // `billing.trialEndsAt`, then the plans. A Paddle trial, once a card
+        // is entered, replaces the date with Paddle's own.
         tier: "trial",
         lastActiveAt: now,
         // Signup happens behind a "By continuing, you agree to our Terms"
@@ -53,7 +78,7 @@ export function newUserProfile({ uid, name, email, answers, signup }: NewUserPro
             paddleCustomerId: null,
             paddleSubscriptionId: null,
             subscriptionStatus: null,
-            trialEndsAt: null,
+            trialEndsAt: trialEndsAt === undefined ? defaultTrialEnd() : trialEndsAt,
             currentPeriodEnd: null,
             welcomeEmailSent: false,
             trialReminderSentAt: null,

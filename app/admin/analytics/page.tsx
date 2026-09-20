@@ -5,6 +5,8 @@ import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, Button, Select, StatTile, SkeletonRows, Spinner, timeAgo } from "../components/ui";
+import { tierLabel } from "@/lib/admin/tiers";
+import TrafficPanel from "./TrafficPanel";
 
 interface Analytics {
     windowDays: number;
@@ -79,6 +81,13 @@ export default function AnalyticsPage() {
                         <StatTile label="Songs started" value={data.totals.projects} />
                         <StatTile label="Community posts" value={data.totals.posts} />
                     </div>
+
+                    {/* The visitor side, from PostHog. Separate call, so a slow or
+                        unconfigured PostHog never holds up the account numbers. */}
+                    <section className="flex flex-col gap-3">
+                        <h2 className="text-xs font-medium text-ink-400">Traffic</h2>
+                        <TrafficPanel key={days} days={days} />
+                    </section>
 
                     <Panel>
                         <PanelHeader
@@ -183,7 +192,7 @@ export default function AnalyticsPage() {
                                         .sort(([, a], [, b]) => b - a)
                                         .map(([tier, count]) => (
                                             <li key={tier} className="px-5 py-2.5 flex items-center justify-between text-sm">
-                                                <span className="text-ink-300">{tier}</span>
+                                                <span className="text-ink-300">{tierLabel(tier)}</span>
                                                 <span className="text-ink-100 tabular-nums">{count}</span>
                                             </li>
                                         ))}

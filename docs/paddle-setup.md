@@ -29,8 +29,8 @@ Paddle > Catalog > Products.
 |------|---------|---------------------------------------|
 | Pro  | yearly  | `NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY`  |
 | Pro  | monthly | `NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY` |
-| Max  | yearly  | `NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY`  |
-| Max  | monthly | `NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY` |
+| Veinote Pro (id `max`) | yearly  | `NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY`  |
+| Veinote Pro (id `max`) | monthly | `NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY` |
 
 The dollar figures in `FALLBACK_PRICING` are only what the paywall paints
 before Paddle answers; the real price comes from the price preview and the
@@ -137,7 +137,7 @@ server's console, where it is logged when mail is off):
    days out.
 7. Settings > the subscription row says "Free trial, ends ..." and "Manage"
    opens the Paddle portal in a new tab.
-8. Profile > "Go Max" changes the subscription in place (no second
+8. Profile > "Go Pro" changes the subscription in place (no second
    checkout) and the webhook updates `billing.plan`.
 
 ## What is deliberately not here

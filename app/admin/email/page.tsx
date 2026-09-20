@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Mail, RefreshCw, Plus, Send, Pause, Play, TriangleAlert, Users, Eye } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, Badge, Button, Input, Select, Textarea, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
+import { tierLabel } from "@/lib/admin/tiers";
 import { LOCALES, LOCALE_LABELS } from "@/lib/content";
 import TemplatesTab from "./TemplatesTab";
 import DirectTab from "./DirectTab";
+import AutomationsTab from "./AutomationsTab";
 
 interface Campaign {
     id: string;
@@ -26,7 +28,7 @@ interface Campaign {
     lastError: string | null;
 }
 
-const TIERS = ["trial", "pro", "max", "comp"];
+const TIERS = ["trial", "pro", "max", "comp", "free"];
 
 const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "red" | "blue"> = {
     draft: "gold",
@@ -39,7 +41,7 @@ const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "red" | "blue">
 export default function EmailPage() {
     const { adminFetch, can } = useAdmin();
 
-    const [tab, setTab] = useState<"templates" | "campaigns" | "direct">("templates");
+    const [tab, setTab] = useState<"templates" | "campaigns" | "direct" | "automations">("templates");
     const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [composing, setComposing] = useState(false);
@@ -192,6 +194,7 @@ export default function EmailPage() {
                     { id: "templates" as const, label: "Templates" },
                     { id: "campaigns" as const, label: "Campaigns" },
                     { id: "direct" as const, label: "Direct" },
+                    { id: "automations" as const, label: "Automations" },
                 ]).map((option) => (
                     <button
                         key={option.id}
@@ -207,6 +210,7 @@ export default function EmailPage() {
 
             {tab === "templates" && <TemplatesTab />}
             {tab === "direct" && <DirectTab />}
+            {tab === "automations" && <AutomationsTab />}
 
             {error && tab === "campaigns" && (
                 <Panel className="p-4 border-red-500/30">
@@ -274,7 +278,7 @@ export default function EmailPage() {
                                                 : "border-ink-600 text-ink-400 hover:text-ink-100"
                                         }`}
                                     >
-                                        {tier}
+                                        {tierLabel(tier)}
                                     </button>
                                 ))}
                             </div>
@@ -356,7 +360,7 @@ export default function EmailPage() {
                                         {c.sentCount} sent
                                         {c.failedCount > 0 && ` · ${c.failedCount} failed`}
                                         {" · "}
-                                        {c.audience?.tiers?.length ? c.audience.tiers.join(", ") : "all tiers"}
+                                        {c.audience?.tiers?.length ? c.audience.tiers.map(tierLabel).join(", ") : "all tiers"}
                                         {" · created "}
                                         {timeAgo(c.createdAt)} by {c.createdByEmail}
                                     </span>

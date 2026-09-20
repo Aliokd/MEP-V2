@@ -7,6 +7,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Input, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import UserDetail from "./UserDetail";
 import CreateUserDialog from "./CreateUserDialog";
+import { TIER_OPTIONS, TIER_TONE, tierLabel, statusLabel } from "@/lib/admin/tiers";
 
 export interface DirectoryUser {
     uid: string;
@@ -25,13 +26,6 @@ export interface DirectoryUser {
     trialEndsAt: string | null;
     sanctioned: boolean;
 }
-
-const TIER_TONE: Record<string, "neutral" | "green" | "gold"> = {
-    trial: "gold",
-    pro: "green",
-    max: "green",
-    comp: "neutral",
-};
 
 export default function UsersPage() {
     return (
@@ -125,10 +119,10 @@ function UserDirectory() {
                 </div>
                 <Select value={tier} onChange={(e) => setTier(e.target.value)}>
                     <option value="">All tiers</option>
-                    <option value="trial">Trial</option>
-                    <option value="pro">Pro</option>
-                    <option value="max">Max</option>
-                    <option value="comp">Comped</option>
+                    {TIER_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                    <option value="free">Expired</option>
                 </Select>
                 <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
                     <option value="">Newest first</option>
@@ -202,7 +196,12 @@ function UserDirectory() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <Badge tone={TIER_TONE[u.tier || ""] || "neutral"}>{u.tier || "none"}</Badge>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <Badge tone={TIER_TONE[u.tier || ""] || "neutral"}>{tierLabel(u.tier)}</Badge>
+                                                {u.subscriptionStatus && (
+                                                    <span className="text-[11px] text-ink-500">{statusLabel(u.subscriptionStatus)}</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-xs text-ink-400">{timeAgo(u.createdAt)}</td>
                                         {/* activeAt is the later of the in-app stamp and

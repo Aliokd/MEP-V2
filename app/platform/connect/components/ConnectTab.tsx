@@ -1704,28 +1704,24 @@ export default function ConnectTab() {
   const showRooms  = activeTab === 'rooms';
   const showPeople = activeTab === 'all' || activeTab === 'people';
   const showSongs  = activeTab === 'all' || activeTab === 'songs';
-  // Business only becomes the active view for a Max member; a non-member
-  // pressing the tab gets the Max popup instead (see the tabs' onChange).
+  // Business only becomes the active view for a Pro member; a non-member
+  // pressing the tab gets the Pro popup instead (see the tabs' onChange).
   const showBusiness = activeTab === 'business';
 
-  // Rooms are the Max surface. The listener only opens for someone who can
-  // actually see inside; everyone else gets the pitch instead of a list.
-  const { hasMax, hasPro, loading: planLoading } = useUserPlan();
-  // Two tiers, two doors: Rooms open on Pro, Business on Max.
-  const roomsLocked = !hasPro;
-  const businessLocked = !hasMax;
-  const { open: rooms, history: roomHistory, loading: roomsLoading } = useRooms(hasPro && showRooms);
-  // Which tier the upgrade modal is selling, or null when closed. The Rooms
-  // banner opens it on Pro; the Business and mid-feed banners on Max.
-  const [upgradeFor, setUpgradeFor] = useState<'pro' | 'max' | null>(null);
-  // One Max banner per view, wherever that view has room for it:
-  //   Rooms  — the locked rooms section is the banner.
-  //   All / Songs — it sits in the feed after the second song.
-  //   People — none. It's a roster, and a pitch under it read as an ad.
-  // One banner per view, each selling the tier that opens what it stands in for:
-  //   Rooms    — locked section is the Pro banner.
-  //   Business — locked section is the Max banner.
-  //   All / Songs — the Max banner sits in the feed after the second song.
+  // Rooms and Business are the Pro surfaces: Veinote Pro, a lifetime grant,
+  // or a running trial opens them. The listener only opens for someone who
+  // can actually see inside; everyone else gets the pitch instead of a list.
+  const { isPro, loading: planLoading } = useUserPlan();
+  const roomsLocked = !isPro;
+  const businessLocked = !isPro;
+  const { open: rooms, history: roomHistory, loading: roomsLoading } = useRooms(isPro && showRooms);
+  // Whether the upgrade modal is open. There is one tier to sell, Pro.
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  // One Pro banner per view, wherever that view has room for it:
+  //   Rooms    — the locked rooms section is the banner.
+  //   Business — a non-member never reaches the tab; pressing it opens the modal.
+  //   All / Songs — the banner sits in the feed after the second song.
+  //   People   — none. It's a roster, and a pitch under it read as an ad.
   const showRoomsBanner = roomsLocked && !planLoading && activeTab === 'rooms';
   // No banner inside Business: a non-member never reaches the tab — pressing
   // it opens the Max popup instead (see the tabs' onChange).
@@ -2474,11 +2470,20 @@ export default function ConnectTab() {
 
       <ConnectTabs
         active={activeTab}
-        onChange={setActiveTab}
-        // Rooms and Business are being reworked. Until they return, both say
-        // "Coming soon" on the tab and take no press; their views and gates
-        // below stay in place for when they do.
-        locks={{ rooms: 'soon', business: 'soon' }}
+        // Rooms is open to everyone as a view: a non-member sees the locked
+        // section, which is the pitch. Business is Pro's alone; a press from
+        // anyone else opens the upgrade instead of an empty tab.
+        onChange={(tab) => {
+          if (tab === 'business' && businessLocked && !planLoading) {
+            setUpgradeOpen(true);
+            return;
+          }
+          setActiveTab(tab);
+        }}
+        locks={{
+          rooms: roomsLocked && !planLoading ? 'pro' : undefined,
+          business: businessLocked && !planLoading ? 'pro' : undefined,
+        }}
         t={t}
       />
 
@@ -2509,13 +2514,13 @@ export default function ConnectTab() {
               description={t('connect.rooms_locked_desc')}
               badgeLabel={t('connect.pro.max_badge')}
               showBadge
-              onClick={() => setUpgradeFor('pro')}
+              onClick={() => setUpgradeOpen(true)}
             />
           )}
 
           {/* Full width and first, as in the sketch: creating a room is the
               primary thing to do here, not a corner control. */}
-          {hasPro && (
+          {isPro && (
             <button
               type="button"
               onClick={() => setShowCreateRoom(true)}
@@ -2525,17 +2530,17 @@ export default function ConnectTab() {
             </button>
           )}
 
-          {hasPro && roomsLoading && (
+          {isPro && roomsLoading && (
             <div className="h-56 rounded-[22px] bg-white border border-stone-200/60 animate-pulse" />
           )}
 
-          {hasPro && !roomsLoading && rooms.length === 0 && (
+          {isPro && !roomsLoading && rooms.length === 0 && (
             <div className="bg-white border border-stone-200/60 rounded-[22px] p-8 text-center text-[14px] text-stone-500">
               {t('connect.rooms_empty')}
             </div>
           )}
 
-          {hasPro && rooms.map((room) => (
+          {isPro && rooms.map((room) => (
             <RoomCard
               key={room.id}
               room={room}
@@ -2549,7 +2554,7 @@ export default function ConnectTab() {
           {/* Ended rooms stay. What happened in a room is part of the record —
               the host doesn't delete it, they close it, and it settles here.
               Only on the Rooms view; on All it would crowd out what's live. */}
-          {hasPro && activeTab === 'rooms' && roomHistory.length > 0 && (
+          {isPro && activeTab === 'rooms' && roomHistory.length > 0 && (
             <>
               <h3 className="font-lyrics text-[22px] text-stone-500 mt-4">{t('connect.rooms_history')}</h3>
               {roomHistory.map((room) => (
@@ -2644,9 +2649,9 @@ export default function ConnectTab() {
       )}
 
       <MaxUpgradeModal
-        isOpen={upgradeFor !== null}
-        onClose={() => setUpgradeFor(null)}
-        plan={upgradeFor ?? 'max'}
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        plan="max"
       />
 
       {/* 4. Songs — the feed. */}
@@ -2751,7 +2756,7 @@ export default function ConnectTab() {
                     description={t('connect.max_card_desc')}
                     badgeLabel={t('connect.pro.max_badge')}
                     showBadge
-                    onClick={() => setUpgradeFor('max')}
+                    onClick={() => setUpgradeOpen(true)}
                   />,
                 ];
               }

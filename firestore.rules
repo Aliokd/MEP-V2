@@ -126,6 +126,10 @@ service cloud.firestore {
         request.resource.data.get("billing", {}).get("subscriptionStatus", null) == null &&
         request.resource.data.get("billing", {}).get("paddleSubscriptionId", null) == null &&
         request.resource.data.get("billing", {}).get("paddleCustomerId", null) == null &&
+        // The trial's end date is what the platform gates on, and the server
+        // stamps it (/api/account/start-trial). A client writing its own
+        // far-off date would be handing itself the product for free.
+        request.resource.data.get("billing", {}).get("trialEndsAt", null) == null &&
         !request.resource.data.keys().hasAny(["sanction", "suspendedUntil", "bannedAt", "createdByAdmin"]);
       // A user owns their profile, but must not be able to grant themselves a
       // paid tier or lift a sanction — those fields are server-written only.

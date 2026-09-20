@@ -11,6 +11,7 @@ import { welcomeEmail } from "@/lib/email/templates/welcome";
 import { betaWelcomeEmail } from "@/lib/email/templates/betaWelcome";
 import { collabInviteEmail } from "@/lib/email/templates/collabInvite";
 import { songCommentedEmail, songLikedEmail } from "@/lib/email/templates/engagement";
+import { trialEndingEmail } from "@/lib/email/templates/trialEnding";
 import { LOCALES } from "@/lib/content";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,16 @@ function renderSample(id: string, locale: EmailLocale, overrides: Awaited<Return
                     joinUrl: `${APP_URL}/signin`,
                     trialDays: 14,
                     waitlistMode: false,
+                },
+                overrides,
+            );
+        case "trial_ending":
+            return trialEndingEmail(
+                locale,
+                {
+                    name: "Alex",
+                    endsOn: new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+                    plansUrl: `${APP_URL}/platform/profile/settings`,
                 },
                 overrides,
             );

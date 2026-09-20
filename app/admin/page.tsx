@@ -11,7 +11,7 @@ interface Overview {
     users: {
         total: number; signups24h: number; signups7d: number; signups30d: number;
         active24h: number; active7d: number; active30d: number;
-        trial: number; pro: number; max: number; trialsExpiring7d: number;
+        trial: number; pro: number; max: number; comp: number; expired: number; trialsExpiring7d: number;
     };
     content: { projectsTotal: number; projects7d: number; postsTotal: number; posts7d: number };
     inbox: { open: number; unread: number; feedbackOpen: number; supportOpen: number };
@@ -120,9 +120,9 @@ export default function AdminOverviewPage() {
                             <StatTile label="New today" value={data.users.signups24h} hint={`${data.users.signups7d} this week`} />
                             <StatTile label="Active today" value={data.users.active24h} hint={`${data.users.active7d} weekly, ${data.users.active30d} monthly`} />
                             <StatTile
-                                label="Paid accounts"
-                                value={data.users.pro + data.users.max}
-                                hint={`${data.users.pro} Pro · ${data.users.max} Max · ${data.users.trial} trial`}
+                                label="On a plan"
+                                value={data.users.pro + data.users.max + data.users.comp}
+                                hint={`${data.users.pro} Veinote · ${data.users.max} Pro · ${data.users.comp} lifetime · ${data.users.trial} trial · ${data.users.expired} expired`}
                             />
                         </div>
                     </section>

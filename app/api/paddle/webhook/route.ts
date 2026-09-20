@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { EventName } from "@paddle/paddle-node-sdk";
-import { adminDb } from "@/lib/firebaseAdmin";
-import { planFromPriceId, isEntitled } from "@/lib/paddle/config";
 import { getPaddle } from "@/lib/paddle/server";
+import { syncSubscription, type SubscriptionLike } from "@/lib/paddle/sync";
 
 // Signature verification needs the untouched request body, so this route must
 // run on Node (not edge) and must never be statically optimized.
@@ -20,118 +19,9 @@ const SUBSCRIPTION_EVENTS = new Set<string>([
     EventName.SubscriptionCanceled,
 ]);
 
-// The subset of Paddle's subscription notification we actually persist.
-interface SubscriptionLike {
-    id: string;
-    status: string;
-    customerId: string;
-    customData: unknown;
-    currentBillingPeriod: { startsAt: string; endsAt: string } | null;
-    /** When the card is next charged; null once cancelled. */
-    nextBilledAt: string | null;
-    /** A cancellation, pause or resume that Paddle will apply later. */
-    scheduledChange: { action: string; effectiveAt: string } | null;
-    items: Array<{
-        price: { id: string } | null;
-        trialDates: { startsAt: string; endsAt: string } | null;
-    }>;
-}
-
-/**
- * Maps a Paddle subscription onto a Firebase uid.
- *
- * Checkout sends `customData.uid`, but renewals and cancellations that Paddle
- * raises on its own don't carry it — those fall back to the customer id we
- * stored the first time round.
- */
-async function resolveUid(sub: SubscriptionLike): Promise<string | null> {
-    const custom = sub.customData as { uid?: unknown } | null;
-    if (custom && typeof custom.uid === "string" && custom.uid) {
-        // `customData.uid` is set by the browser that opened the checkout,
-        // with the public client token, so it is a claim and not a fact.
-        // It is honoured only for an account that has no Paddle customer
-        // yet, or whose customer is the one on this subscription: a checkout
-        // opened with someone else's uid must not rewrite their plan.
-        const claimed = await adminDb.doc(`users/${custom.uid}`).get();
-        if (!claimed.exists) {
-            console.warn(`Paddle webhook: customData.uid ${custom.uid} has no user doc; ignoring the claim`);
-        } else {
-            const owned = claimed.data()?.billing?.paddleCustomerId;
-            if (!owned || owned === sub.customerId) return custom.uid;
-            console.warn(`Paddle webhook: subscription ${sub.id} (customer ${sub.customerId}) claims uid ${custom.uid}, which belongs to customer ${owned}; ignoring the claim`);
-        }
-    }
-
-    if (!sub.customerId) return null;
-
-    const snap = await adminDb
-        .collection("users")
-        .where("billing.paddleCustomerId", "==", sub.customerId)
-        .limit(1)
-        .get();
-
-    return snap.empty ? null : snap.docs[0].id;
-}
-
-async function syncSubscription(sub: SubscriptionLike, occurredAt: string): Promise<string> {
-    const uid = await resolveUid(sub);
-    if (!uid) {
-        // Not an error: it can legitimately happen for customers created
-        // outside this app. Logged so it's visible rather than silently lost.
-        console.warn(`Paddle webhook: no user matched subscription ${sub.id} (customer ${sub.customerId})`);
-        return "no matching user";
-    }
-
-    const userRef = adminDb.doc(`users/${uid}`);
-    const userSnap = await userRef.get();
-
-    if (!userSnap.exists) {
-        console.warn(`Paddle webhook: users/${uid} does not exist`);
-        return "user doc missing";
-    }
-
-    // Paddle retries and can deliver out of order — never let an older event
-    // overwrite the state a newer one already wrote.
-    const lastEventAt = userSnap.data()?.billing?.lastEventAt;
-    if (typeof lastEventAt === "string" && lastEventAt > occurredAt) {
-        return "stale event ignored";
-    }
-
-    const item = sub.items?.[0];
-    const priceId = item?.price?.id ?? null;
-    const matched = priceId ? planFromPriceId(priceId) : null;
-    const entitled = isEntitled(sub.status);
-
-    if (priceId && !matched) {
-        console.warn(`Paddle webhook: price ${priceId} does not map to a known plan. Check NEXT_PUBLIC_PADDLE_PRICE_* vars`);
-    }
-
-    await userRef.set(
-        {
-            tier: entitled && matched ? matched.plan : "free",
-            billing: {
-                plan: matched?.plan ?? null,
-                billingPeriod: matched?.period ?? null,
-                paddleCustomerId: sub.customerId,
-                paddleSubscriptionId: sub.id,
-                subscriptionStatus: sub.status,
-                currentPeriodEnd: sub.currentBillingPeriod?.endsAt ?? null,
-                nextBilledAt: sub.nextBilledAt ?? null,
-                trialEndsAt: item?.trialDates?.endsAt ?? null,
-                // "Cancels on the 3rd" is the one thing Settings has to be
-                // able to say that the status alone does not: a cancelled
-                // subscription stays `active` until the period ends.
-                scheduledChange: sub.scheduledChange
-                    ? { action: sub.scheduledChange.action, effectiveAt: sub.scheduledChange.effectiveAt }
-                    : null,
-                lastEventAt: occurredAt,
-            },
-        },
-        { merge: true },
-    );
-
-    return `synced ${uid}`;
-}
+// Finding the user and writing the subscription live in lib/paddle/sync.ts,
+// shared with the admin console's "Refresh from Paddle" so both write the
+// same shape.
 
 export async function POST(request: Request) {
     const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;

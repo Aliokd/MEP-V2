@@ -132,6 +132,15 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         variables: ["name", "code", "invites"],
     },
     {
+        id: "trial_ending",
+        label: "Trial ending reminder",
+        whenSent:
+            "Automatically, the day before a no-card trial ends. Once per account. Card trials get Paddle's own reminder. Switched and run from the Automations tab.",
+        keyPrefix: "trial_ending",
+        fields: ["subject", "greeting", "greeting_named", "body", "keep", "cta", "team"],
+        variables: ["name", "endsOn"],
+    },
+    {
         id: "song_liked",
         label: "Someone liked your song",
         whenSent:

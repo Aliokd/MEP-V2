@@ -4,6 +4,7 @@ import { Inter, Fraunces } from 'next/font/google';
 import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
 import AnalyticsGate from '@/components/AnalyticsGate';
+import AttributionCapture from '@/components/AttributionCapture';
 import CookieBanner from '@/components/CookieBanner';
 import { SitePagesProvider } from '@/context/SitePagesContext';
 import { getFooterPages } from '@/lib/sitePages';
@@ -266,6 +267,7 @@ export default async function RootLayout({
             </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
                 <AnalyticsGate />
+                <AttributionCapture />
                 <Providers
                     initialLanguage={language}
                     localeFromUrl={fromUrl}

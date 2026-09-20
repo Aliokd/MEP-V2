@@ -11,7 +11,8 @@ import { resolveLocale } from "@/lib/email/locale";
 export const dynamic = "force-dynamic";
 
 const DAY = 24 * 60 * 60 * 1000;
-const VALID_TIERS = ["trial", "pro", "max", "comp"];
+import { ASSIGNABLE_TIERS } from "@/lib/admin/tiers";
+import { defaultTrialEnd } from "@/lib/entitlement";
 const VALID_LOCALES = ["en", "no", "sv"];
 const VALID_EMAIL_TYPES = ["welcome", "beta"];
 
@@ -56,7 +57,7 @@ export const POST = withAdmin("users.create", async (request, admin) => {
             { status: 400 },
         );
     }
-    if (!VALID_TIERS.includes(tier)) {
+    if (!ASSIGNABLE_TIERS.includes(tier)) {
         return NextResponse.json({ error: `Invalid tier "${tier}"` }, { status: 400 });
     }
     if (!VALID_LOCALES.includes(locale)) {
@@ -97,9 +98,13 @@ export const POST = withAdmin("users.create", async (request, admin) => {
     }
 
     const now = new Date().toISOString();
+    // A trial always ends. The length the console asked for, else the
+    // platform's default; a granted tier carries no date.
     const trialEndsAt =
-        tier === "trial" && Number(trialDays) > 0
-            ? new Date(Date.now() + Number(trialDays) * DAY).toISOString()
+        tier === "trial"
+            ? Number(trialDays) > 0
+                ? new Date(Date.now() + Number(trialDays) * DAY).toISOString()
+                : defaultTrialEnd()
             : null;
 
     // Mirrors createUserProfile() in lib/userProfile.ts. If that shape changes,

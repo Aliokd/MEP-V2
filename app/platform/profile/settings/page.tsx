@@ -43,7 +43,13 @@ function describeBilling(
     const { subscriptionStatus: status, billing } = plan;
 
     if (!plan.paid) {
-        if (plan.hasPro || plan.hasMax) return t('profile.billing.granted');
+        if (plan.source === 'granted') return t('profile.billing.granted');
+        if (plan.access === 'trial') {
+            return plan.trialEndsAt
+                ? t('profile.billing.trial_ends').replace('{date}', date(plan.trialEndsAt))
+                : t('profile.billing.trial_open');
+        }
+        if (plan.access === 'expired') return t('profile.billing.expired_desc');
         if (status === 'past_due') return t('profile.billing.past_due');
         if (status === 'paused') return t('profile.billing.paused');
         if (status === 'canceled') return t('profile.billing.canceled');
@@ -71,7 +77,9 @@ function billingStatus(
     const { subscriptionStatus: status, billing } = plan;
     if (plan.loading) return null;
     if (!plan.paid) {
-        if (plan.hasPro || plan.hasMax) return { label: t('profile.billing.status_granted'), tone: 'green' };
+        if (plan.source === 'granted') return { label: t('profile.billing.status_granted'), tone: 'green' };
+        if (plan.access === 'trial') return { label: t('profile.billing.status_trial'), tone: 'gold' };
+        if (plan.access === 'expired') return { label: t('profile.billing.status_expired'), tone: 'red' };
         if (status === 'past_due') return { label: t('profile.billing.status_past_due'), tone: 'red' };
         if (status === 'paused') return { label: t('profile.billing.status_paused'), tone: 'neutral' };
         if (status === 'canceled') return { label: t('profile.billing.status_canceled'), tone: 'neutral' };
@@ -493,7 +501,13 @@ export default function SettingsPage() {
                             <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                                 <div className="min-w-0">
                                     <p className="text-lg font-sans font-medium tracking-tight text-stone-900">
-                                        {plan.hasMax ? 'Pro' : plan.hasPro ? t('profile.billing.plan_base') : t('profile.billing.no_plan')}
+                                        {plan.access === 'pro'
+                                            ? 'Pro'
+                                            : plan.access === 'veinote'
+                                            ? t('profile.billing.plan_base')
+                                            : plan.access === 'trial'
+                                            ? t('profile.billing.plan_trial')
+                                            : t('profile.billing.no_plan')}
                                     </p>
                                     {plan.paid && plan.plan && plan.billing.billingPeriod && (
                                         <p className="text-[13px] text-stone-600">
@@ -552,7 +566,7 @@ export default function SettingsPage() {
                                     </button>
                                 ) : null}
 
-                                {!plan.billing.hasSubscription && !plan.hasPro && (
+                                {!plan.billing.hasSubscription && plan.source !== 'granted' && (
                                     <Link href="/onboarding?step=paywall" className={`${btn.primary('sm')} cursor-pointer`}>
                                         <CreditCard size={14} />
                                         {t('profile.billing.choose_plan')}
