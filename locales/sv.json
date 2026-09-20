@@ -1198,7 +1198,12 @@
       "cancelled_notice_nodate": "Klart. Din prenumeration avslutas vid periodens slut.",
       "resume_action": "Behåll prenumerationen",
       "resumed_notice": "Din prenumeration fortsätter som förut.",
-      "resume_error": "Vi kunde inte återställa prenumerationen. Försök igen, eller skriv till support@veinote.com."
+      "resume_error": "Vi kunde inte återställa prenumerationen. Försök igen, eller skriv till support@veinote.com.",
+      "plan_trial": "Provperiod",
+      "trial_ends": "Din provperiod slutar {date}. Välj en plan för att fortsätta skriva efter det.",
+      "trial_open": "Du är i en provperiod. Välj en plan när du är redo.",
+      "expired_desc": "Din provperiod är slut. Välj en plan för att fortsätta skriva.",
+      "status_expired": "Provperioden är slut"
     },
     "offboarding": {
       "title": "Radera konto",
@@ -2585,11 +2590,11 @@
       },
       "cookies_analytics": {
         "title": "Cookies och analys",
-        "body": "Nödvändiga kakor håller dig inloggad och kommer ihåg grundläggande inställningar som ditt språk. De behövs för att webbplatsen ska fungera, så de är alltid på.\n\nInnan du gör ett val i samtyckesfältet mäter vi besök anonymt och utan kakor: vårt analysverktyg (PostHog) räknar sidvisningar, sidan du kom ifrån, din enhetstyp och ditt land, men lagrar ingenting på din enhet och kan inte känna igen dig mellan besök. Varje besök är en ny, namnlös besökare, och ingenting från före ett samtycke kan någonsin kopplas till dig efteråt.\n\nVäljer du ”Acceptera alla” använder vi dessutom Microsoft Clarity, PostHog och Google Analytics (genom Firebase) med kakor, så att vi kan förstå hur webbplatsen används mellan besök. När du är inloggad registrerar dessa verktyg din kontoidentifierare så att vi kan se hur funktionerna används under en session.\n\nMed ”Acceptera alla” spelar Clarity och PostHog också in sessioner – en uppspelning av hur en sida användes, med klick, scrollning och navigering. Allt du skriver maskeras innan det lämnar din webbläsare, så dina låttexter och annat skrivet arbete hamnar aldrig i en inspelning. Analysdata används i aggregerad form och säljs inte till tredje part.\n\nDitt val sparas i din webbläsare, inte på ditt konto, och gäller den webbläsaren på den enheten. Du kan ändra det när som helst med knappen ”Kakinställningar” längst ned på den här sidan – ändrar du till ”Bara nödvändiga” stoppas kakbaserad analys och vi återgår till enbart anonym räkning."
+        "body": "Nödvändiga kakor håller dig inloggad och kommer ihåg grundläggande inställningar som ditt språk. De behövs för att webbplatsen ska fungera, så de är alltid på.\n\nInnan du gör ett val i samtyckesfältet mäter vi besök anonymt och utan kakor: vårt analysverktyg (PostHog) räknar sidvisningar, sidan du kom ifrån, din enhetstyp och ditt land, men lagrar ingenting på din enhet och kan inte känna igen dig mellan besök. Varje besök är en ny, namnlös besökare, och ingenting från före ett samtycke kan någonsin kopplas till dig efteråt.\n\nVäljer du ”Acceptera alla” använder vi dessutom PostHog och Google Analytics (genom Firebase) med kakor, så att vi kan förstå hur webbplatsen används mellan besök. När du är inloggad registrerar dessa verktyg din kontoidentifierare så att vi kan se hur funktionerna används under en session.\n\nMed ”Acceptera alla” spelar PostHog också in sessioner: en uppspelning av hur en sida användes, med klick, scrollning och navigering. Allt du skriver maskeras innan det lämnar din webbläsare, så dina låttexter och annat skrivet arbete hamnar aldrig i en inspelning. Analysdata används i aggregerad form och säljs inte till tredje part.\n\nDitt val sparas i din webbläsare, inte på ditt konto, och gäller den webbläsaren på den enheten. Du kan ändra det när som helst med knappen ”Kakinställningar” längst ned på den här sidan. Ändrar du till ”Bara nödvändiga” stoppas kakbaserad analys och vi återgår till enbart anonym räkning."
       },
       "session_recording": {
         "title": "Inspelning av sessionen",
-        "body": "Om du accepterar analys spelar Microsoft Clarity och PostHog också in en uppspelning av hur du använder webbplatsen och plattformen: sidorna du öppnar, var du klickar och skrollar, dina musrörelser och vad som visas på skärmen just då. Det är inte en video av din skärm eller kamera, och mikrofonen spelas aldrig in – ljud du spelar in i Veinote är aldrig en del av det.\n\nText du skriver i fält maskeras innan den lämnar din webbläsare, så lösenord och formulärinnehåll syns inte. Text du redan skrivit på din canvas är en del av det sidan visar, och syns därför i en inspelning av den sidan.\n\nVi använder inspelningar bara för att hitta var produkten är förvirrande eller trasig. De förvaras av Clarity (Microsoft) och PostHog som personuppgiftsbiträden för vår räkning, säljs inte, och raderas enligt dessa leverantörers lagringstider.\n\nInspelning sker bara efter att du accepterat analys. Vill du stoppa den, välj ”Bara nödvändiga” i kakraden, eller ändra ditt svar med ”Kakinställningar” längst ned på den här sidan."
+        "body": "Om du accepterar analys spelar PostHog också in en uppspelning av hur du använder webbplatsen och plattformen: sidorna du öppnar, var du klickar och skrollar, dina musrörelser och vad som visas på skärmen just då. Det är inte en video av din skärm eller kamera, och mikrofonen spelas aldrig in. Ljud du spelar in i Veinote är aldrig en del av det.\n\nText du skriver i fält maskeras innan den lämnar din webbläsare, så lösenord och formulärinnehåll syns inte. Text du redan skrivit på din canvas är en del av det sidan visar, och syns därför i en inspelning av den sidan.\n\nVi använder inspelningar bara för att hitta var produkten är förvirrande eller trasig. De förvaras av PostHog som personuppgiftsbiträde för vår räkning, säljs inte, och raderas enligt dessa leverantörers lagringstider.\n\nInspelning sker bara efter att du accepterat analys. Vill du stoppa den, välj ”Bara nödvändiga” i kakraden, eller ändra ditt svar med ”Kakinställningar” längst ned på den här sidan."
       },
       "third_party": {
         "title": "Tredjepartstjänster",
@@ -2701,5 +2706,22 @@
   "refunds": {
     "title": "Återbetalningspolicy",
     "effective_date": "Gäller från september 2026"
+  },
+  "trial_ended": {
+    "title": "Din provperiod är slut",
+    "body": "Allt du har skrivit finns kvar. Välj en plan för att fortsätta skriva, spela in och göra klart låtar.",
+    "lapsed_title": "Din prenumeration har avslutats",
+    "lapsed_body": "Allt du har skrivit finns kvar. Välj en plan för att fortsätta där du slutade.",
+    "trial_note": "Avsluta när du vill. Inget dras förrän de fria dagarna är slut.",
+    "choose": "Välj {plan}",
+    "plan_base": "Veinote",
+    "plan_pro": "Veinote Pro",
+    "base_tagline": "Alla verktyg, alla lektioner, gemenskapen.",
+    "pro_tagline": "Allt i Veinote, plus Rooms och Business.",
+    "manage": "Hantera betalning",
+    "sign_out": "Logga ut",
+    "help": "Frågor? Skriv till",
+    "opening": "Öppnar kassan...",
+    "unavailable": "Betalning är inte tillgänglig just nu. Skriv till contact@veinote.com så löser vi det."
   }
 }

@@ -48,7 +48,7 @@ export interface ConsentState {
     necessary: true;
     /** PostHog's identified tier and Firebase Analytics. */
     analytics: boolean;
-    /** PostHog session replay and Microsoft Clarity. */
+    /** PostHog session replay. */
     replay: boolean;
 }
 

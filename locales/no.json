@@ -1198,7 +1198,12 @@
       "cancelled_notice_nodate": "Gjort. Abonnementet ditt avsluttes ved slutten av perioden.",
       "resume_action": "Behold abonnementet",
       "resumed_notice": "Abonnementet ditt fortsetter som før.",
-      "resume_error": "Vi fikk ikke gjenopprettet abonnementet. Prøv igjen, eller skriv til support@veinote.com."
+      "resume_error": "Vi fikk ikke gjenopprettet abonnementet. Prøv igjen, eller skriv til support@veinote.com.",
+      "plan_trial": "Prøveperiode",
+      "trial_ends": "Prøveperioden din slutter {date}. Velg en plan for å fortsette å skrive etter det.",
+      "trial_open": "Du er i en prøveperiode. Velg en plan når du er klar.",
+      "expired_desc": "Prøveperioden din er over. Velg en plan for å fortsette å skrive.",
+      "status_expired": "Prøveperioden er over"
     },
     "offboarding": {
       "title": "Slett konto",
@@ -2585,11 +2590,11 @@
       },
       "cookies_analytics": {
         "title": "Informasjonskapsler og analyse",
-        "body": "Nødvendige informasjonskapsler holder deg innlogget og husker grunnleggende innstillinger som språket ditt. De trengs for at nettstedet skal fungere, så de er alltid på.\n\nFør du gjør et valg i samtykkelinjen, måler vi besøk anonymt og uten informasjonskapsler: analyseverktøyet vårt (PostHog) teller sidevisninger, siden du kom fra, enhetstypen din og landet ditt, men lagrer ingenting på enheten din og kan ikke kjenne deg igjen mellom besøk. Hvert besøk er en ny, navnløs besøkende, og ingenting fra før et samtykke kan noen gang knyttes til deg etterpå.\n\nVelger du «Godta alle», bruker vi i tillegg Microsoft Clarity, PostHog og Google Analytics (gjennom Firebase) med informasjonskapsler, slik at vi kan forstå hvordan nettstedet brukes på tvers av besøk. Når du er innlogget, registrerer disse verktøyene kontoidentifikatoren din, slik at vi kan se hvordan funksjonene brukes gjennom en økt.\n\nMed «Godta alle» tar Clarity og PostHog også opp økter – et opptak av hvordan en side ble brukt, med klikk, rulling og navigasjon. Alt du skriver, maskeres før det forlater nettleseren din, så tekstene dine og annet skriftlig arbeid havner aldri i et opptak. Analysedata brukes i aggregert form og selges ikke til tredjeparter.\n\nValget ditt lagres i nettleseren din, ikke på kontoen din, og gjelder den nettleseren på den enheten. Du kan endre det når som helst med knappen «Innstillinger for informasjonskapsler» nederst på denne siden – endrer du til «Bare nødvendige», stopper analyse med informasjonskapsler, og vi går tilbake til bare anonym telling."
+        "body": "Nødvendige informasjonskapsler holder deg innlogget og husker grunnleggende innstillinger som språket ditt. De trengs for at nettstedet skal fungere, så de er alltid på.\n\nFør du gjør et valg i samtykkelinjen, måler vi besøk anonymt og uten informasjonskapsler: analyseverktøyet vårt (PostHog) teller sidevisninger, siden du kom fra, enhetstypen din og landet ditt, men lagrer ingenting på enheten din og kan ikke kjenne deg igjen mellom besøk. Hvert besøk er en ny, navnløs besøkende, og ingenting fra før et samtykke kan noen gang knyttes til deg etterpå.\n\nVelger du «Godta alle», bruker vi i tillegg PostHog og Google Analytics (gjennom Firebase) med informasjonskapsler, slik at vi kan forstå hvordan nettstedet brukes på tvers av besøk. Når du er innlogget, registrerer disse verktøyene kontoidentifikatoren din, slik at vi kan se hvordan funksjonene brukes gjennom en økt.\n\nMed «Godta alle» tar PostHog også opp økter: et opptak av hvordan en side ble brukt, med klikk, rulling og navigasjon. Alt du skriver, maskeres før det forlater nettleseren din, så tekstene dine og annet skriftlig arbeid havner aldri i et opptak. Analysedata brukes i aggregert form og selges ikke til tredjeparter.\n\nValget ditt lagres i nettleseren din, ikke på kontoen din, og gjelder den nettleseren på den enheten. Du kan endre det når som helst med knappen «Innstillinger for informasjonskapsler» nederst på denne siden. Endrer du til «Bare nødvendige», stopper analyse med informasjonskapsler, og vi går tilbake til bare anonym telling."
       },
       "session_recording": {
         "title": "Opptak av økten",
-        "body": "Hvis du godtar analyse, tar Microsoft Clarity og PostHog også opp en avspilling av hvordan du bruker nettstedet og plattformen: sidene du åpner, hvor du klikker og blar, musebevegelsene dine, og hva som vises på skjermen der og da. Det er ikke en video av skjermen eller kameraet ditt, og mikrofonen tas aldri opp – lyd du spiller inn i Veinote er aldri en del av det.\n\nTekst du skriver i felt maskeres før den forlater nettleseren din, så passord og skjemainnhold vises ikke. Tekst du allerede har skrevet på lerretet, er en del av det siden viser, og er derfor synlig i et opptak av den siden.\n\nVi bruker opptak bare til å finne ut hvor produktet er forvirrende eller ødelagt. De oppbevares av Clarity (Microsoft) og PostHog som databehandlere på våre vegne, selges ikke, og slettes etter disse leverandørenes lagringsfrister.\n\nOpptak skjer bare etter at du har godtatt analyse. Vil du stoppe det, velg «Bare nødvendige» i informasjonskapsel-linjen, eller endre svaret ditt med «Innstillinger for informasjonskapsler» nederst på denne siden."
+        "body": "Hvis du godtar analyse, tar PostHog også opp en avspilling av hvordan du bruker nettstedet og plattformen: sidene du åpner, hvor du klikker og blar, musebevegelsene dine, og hva som vises på skjermen der og da. Det er ikke en video av skjermen eller kameraet ditt, og mikrofonen tas aldri opp. Lyd du spiller inn i Veinote er aldri en del av det.\n\nTekst du skriver i felt maskeres før den forlater nettleseren din, så passord og skjemainnhold vises ikke. Tekst du allerede har skrevet på lerretet, er en del av det siden viser, og er derfor synlig i et opptak av den siden.\n\nVi bruker opptak bare til å finne ut hvor produktet er forvirrende eller ødelagt. De oppbevares av PostHog som databehandler på våre vegne, selges ikke, og slettes etter disse leverandørenes lagringsfrister.\n\nOpptak skjer bare etter at du har godtatt analyse. Vil du stoppe det, velg «Bare nødvendige» i informasjonskapsel-linjen, eller endre svaret ditt med «Innstillinger for informasjonskapsler» nederst på denne siden."
       },
       "third_party": {
         "title": "Tredjepartstjenester",
@@ -2701,5 +2706,22 @@
   "refunds": {
     "title": "Refusjonsvilkår",
     "effective_date": "Gjelder fra september 2026"
+  },
+  "trial_ended": {
+    "title": "Prøveperioden din er over",
+    "body": "Alt du har skrevet ligger her fortsatt. Velg en plan for å fortsette å skrive, ta opp og gjøre ferdig låter.",
+    "lapsed_title": "Abonnementet ditt er avsluttet",
+    "lapsed_body": "Alt du har skrevet ligger her fortsatt. Velg en plan for å fortsette der du slapp.",
+    "trial_note": "Avslutt når du vil. Ingenting trekkes før de gratis dagene er over.",
+    "choose": "Velg {plan}",
+    "plan_base": "Veinote",
+    "plan_pro": "Veinote Pro",
+    "base_tagline": "Alle verktøy, alle leksjoner, fellesskapet.",
+    "pro_tagline": "Alt i Veinote, pluss Rooms og Business.",
+    "manage": "Administrer betaling",
+    "sign_out": "Logg ut",
+    "help": "Spørsmål? Skriv til",
+    "opening": "Åpner kassen...",
+    "unavailable": "Betaling er ikke tilgjengelig akkurat nå. Skriv til contact@veinote.com, så ordner vi det."
   }
 }

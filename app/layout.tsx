@@ -265,7 +265,7 @@ export default async function RootLayout({
                 />
             </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
-                <AnalyticsGate nonce={nonce} />
+                <AnalyticsGate />
                 <Providers
                     initialLanguage={language}
                     localeFromUrl={fromUrl}

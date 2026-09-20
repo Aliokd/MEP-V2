@@ -111,9 +111,6 @@ function buildCsp(nonce: string): string {
             'https://*.google-analytics.com',
             'https://*.analytics.google.com',
             'https://www.google.com',
-            // Microsoft Clarity (app/layout.tsx, and the identify call in
-            // context/AuthContext.tsx).
-            'https://*.clarity.ms',
             // PostHog (lib/posthog.ts). The wildcard covers both regions and
             // both roles: ingestion (eu/us.i.posthog.com) and the asset host the
             // SDK pulls remote config from (eu/us-assets.i.posthog.com). Getting

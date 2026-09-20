@@ -1198,7 +1198,12 @@
       "cancelled_notice_nodate": "Done. Your subscription ends with the current period.",
       "resume_action": "Keep my subscription",
       "resumed_notice": "Your subscription continues as before.",
-      "resume_error": "We couldn't restore the subscription. Please try again, or write to support@veinote.com."
+      "resume_error": "We couldn't restore the subscription. Please try again, or write to support@veinote.com.",
+      "plan_trial": "Trial",
+      "trial_ends": "Your trial ends {date}. Choose a plan to keep writing after that.",
+      "trial_open": "You are on a trial. Choose a plan whenever you are ready.",
+      "expired_desc": "Your trial has ended. Choose a plan to keep writing.",
+      "status_expired": "Trial ended"
     },
     "offboarding": {
       "title": "Delete account",
@@ -2607,11 +2612,11 @@
       },
       "cookies_analytics": {
         "title": "Cookies & analytics",
-        "body": "Essential cookies keep you signed in and remember basic preferences such as your language. These are needed for the site to work, so they are always on.\n\nBefore you make a choice in the cookie bar, we measure visits anonymously and without cookies: our analytics tool (PostHog) counts pageviews, the page you came from, your device type and your country, but stores nothing on your device and cannot recognise you across visits. Each visit is a new, unnamed visitor, and nothing from before a consent can ever be connected to you after one.\n\nIf you choose \"Accept all\", we additionally use Microsoft Clarity, PostHog and Google Analytics (through Firebase) with cookies, so we can understand how the site is used across visits. Once you are signed in, these tools record your account identifier so we can see how features are used across a session.\n\nWith \"Accept all\", Clarity and PostHog also record sessions: a replay of how a page was used, covering clicks, scrolling and navigation. Anything you type is masked before it leaves your browser, so your lyrics and other written work never appear in a recording. Analytics data is used in aggregate and is not sold to third parties.\n\nYour choice is stored in your browser, not in your account, and it applies to that browser on that device. You can change it at any time using the \"Cookie settings\" button at the bottom of this page. Changing it to \"Only necessary\" stops cookie-based analytics and returns to anonymous counting only."
+        "body": "Essential cookies keep you signed in and remember basic preferences such as your language. These are needed for the site to work, so they are always on.\n\nBefore you make a choice in the cookie bar, we measure visits anonymously and without cookies: our analytics tool (PostHog) counts pageviews, the page you came from, your device type and your country, but stores nothing on your device and cannot recognise you across visits. Each visit is a new, unnamed visitor, and nothing from before a consent can ever be connected to you after one.\n\nIf you choose \"Accept all\", we additionally use PostHog and Google Analytics (through Firebase) with cookies, so we can understand how the site is used across visits. Once you are signed in, these tools record your account identifier so we can see how features are used across a session.\n\nWith \"Accept all\", PostHog also records sessions: a replay of how a page was used, covering clicks, scrolling and navigation. Anything you type is masked before it leaves your browser, so your lyrics and other written work never appear in a recording. Analytics data is used in aggregate and is not sold to third parties.\n\nYour choice is stored in your browser, not in your account, and it applies to that browser on that device. You can change it at any time using the \"Cookie settings\" button at the bottom of this page. Changing it to \"Only necessary\" stops cookie-based analytics and returns to anonymous counting only."
       },
       "session_recording": {
         "title": "Session recording",
-        "body": "If you accept analytics, Microsoft Clarity and PostHog also record a playback of how you use the site and the platform: the pages you open, where you click and scroll, your mouse movement, and what is displayed on screen at the time. It is not a video of your screen or camera, and it never captures your microphone. Audio you record in Veinote is never part of it.\n\nText you type into fields is masked before it leaves your browser, so passwords and form entries do not appear. Lyrics already written on your canvas are part of what the page displays, so they are visible in a recording of that page.\n\nWe use recordings only to find where the product is confusing or broken. They are held by Clarity (Microsoft) and PostHog as processors on our behalf, are not sold, and are deleted on those providers' retention schedules.\n\nRecording only ever runs after you accept analytics. To stop it, choose \"Only necessary\" in the cookie bar, or change your answer with \"Cookie settings\" at the bottom of this page."
+        "body": "If you accept analytics, PostHog also records a playback of how you use the site and the platform: the pages you open, where you click and scroll, your mouse movement, and what is displayed on screen at the time. It is not a video of your screen or camera, and it never captures your microphone. Audio you record in Veinote is never part of it.\n\nText you type into fields is masked before it leaves your browser, so passwords and form entries do not appear. Lyrics already written on your canvas are part of what the page displays, so they are visible in a recording of that page.\n\nWe use recordings only to find where the product is confusing or broken. They are held by PostHog as a processor on our behalf, are not sold, and are deleted on those providers' retention schedules.\n\nRecording only ever runs after you accept analytics. To stop it, choose \"Only necessary\" in the cookie bar, or change your answer with \"Cookie settings\" at the bottom of this page."
       },
       "third_party": {
         "title": "Third-party services",
@@ -2723,5 +2728,22 @@
   "refunds": {
     "title": "Refund Policy",
     "effective_date": "Effective September 2026"
+  },
+  "trial_ended": {
+    "title": "Your trial has ended",
+    "body": "Everything you wrote is still here. Pick a plan to keep writing, recording and finishing songs.",
+    "lapsed_title": "Your subscription has ended",
+    "lapsed_body": "Everything you wrote is still here. Pick a plan to carry on where you left off.",
+    "trial_note": "Cancel anytime. Nothing is charged until the end of your free days.",
+    "choose": "Choose {plan}",
+    "plan_base": "Veinote",
+    "plan_pro": "Veinote Pro",
+    "base_tagline": "Every tool, every lesson, the community.",
+    "pro_tagline": "Everything in Veinote, plus Rooms and Business.",
+    "manage": "Manage billing",
+    "sign_out": "Sign out",
+    "help": "Questions? Write to",
+    "opening": "Opening checkout...",
+    "unavailable": "Payments are not available right now. Write to contact@veinote.com and we will sort it out."
   }
 }

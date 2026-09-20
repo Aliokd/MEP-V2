@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from 'react';
-import Script from 'next/script';
 import {
     initPostHog,
     enablePersistentTracking,
@@ -11,8 +10,6 @@ import {
 } from '@/lib/posthog';
 import { initFirebaseAnalytics } from '@/lib/firebaseAuth';
 import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '@/lib/cookieConsent';
-
-const CLARITY_PROJECT_ID = 'xovh69ah42';
 
 /**
  * Two-tier analytics, keyed off the consent bar.
@@ -25,27 +22,19 @@ const CLARITY_PROJECT_ID = 'xovh69ah42';
  *
  * The two consent categories map to different vendors, which is why they are
  * two effects rather than one: analytics turns on PostHog's identified tier and
- * Firebase Analytics; session recording turns on PostHog replay and Clarity.
- * Someone who agreed to be counted but not filmed gets exactly the first set.
+ * Firebase Analytics; session recording turns on PostHog replay. Someone who
+ * agreed to be counted but not filmed gets exactly the first set.
  *
- * Clarity and Firebase Analytics have no storage-free mode, so they stay fully
- * consent-gated. Neither can be unloaded again once running: on withdrawal they
- * persist until the next full page load, at which point this component simply
- * doesn't start them.
- */
-/**
- * `nonce` comes from the root layout, which reads it off the request header
- * proxy.ts sets. It cannot be read here: this is a client component, and the
- * nonce is per-request server state.
+ * Firebase Analytics has no storage-free mode, so it stays fully consent-gated
+ * and cannot be unloaded again once running: on withdrawal it persists until
+ * the next full page load, at which point this component simply doesn't start
+ * it. Microsoft Clarity used to ride on the replay category too; it was
+ * removed on 2026-09-20 (PostHog replay covers it, and one recorder of
+ * what people type is enough to keep an eye on).
  *
- * Passed explicitly rather than relied upon. script-src is
- * `'nonce-…' 'strict-dynamic'`, and next/script injects the Clarity tag from
- * already-trusted bundle code, so strict-dynamic arguably covers it — but
- * "arguably" is the wrong footing for a tag that fails silently when it is
- * wrong. With the nonce attached it is allowed under the nonce rule directly,
- * whichever way that argument goes.
+ * Renders nothing: the whole job is the effects.
  */
-export default function AnalyticsGate({ nonce }: { nonce?: string }) {
+export default function AnalyticsGate() {
     // The stored choice is external state, so it is read through the store API
     // rather than mirrored into component state: no cascading render on mount,
     // and a choice made in another tab settles this one too.
@@ -78,17 +67,5 @@ export default function AnalyticsGate({ nonce }: { nonce?: string }) {
         else disableSessionReplay();
     }, [recorded]);
 
-    if (!recorded) return null;
-
-    return (
-        <Script id="microsoft-clarity" strategy="afterInteractive" nonce={nonce}>
-            {`
-                (function(c,l,a,r,i,t,y){
-                    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                })(window, document, "clarity", "script", "${CLARITY_PROJECT_ID}");
-            `}
-        </Script>
-    );
+    return null;
 }

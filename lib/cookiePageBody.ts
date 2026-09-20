@@ -26,7 +26,7 @@ Cookies and storage that keep Veinote working are set by us and by Firebase, whi
 
 Analytics is PostHog, running in the EU. Before you allow anything it runs in an anonymous mode that writes nothing to your device: visits are counted, but nothing is kept and nobody is identified. Allowing analytics is what lets it remember a device between visits.
 
-Session recording is PostHog's replay together with Microsoft Clarity. Recordings mask all text, so your lyrics and anything else you write never appear in one.
+Session recording is PostHog's replay. Recordings mask all text, so your lyrics and anything else you write never appear in one.
 
 Payments are handled by our payment partner at checkout, under its own terms.
 

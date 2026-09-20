@@ -29,7 +29,7 @@ import type { PostHog } from 'posthog-js';
  * match the project's region (https://eu.i.posthog.com for this one) — the
  * wrong region fails silently.
  */
-// Defaulted in source, like Clarity's project id in AnalyticsGate, because the
+// Defaulted in source because the
 // env route never actually reached production: NEXT_PUBLIC_* values are inlined
 // at build time, the deploy workflow writes only the server secrets into .env,
 // and so every prod build shipped with PostHog silently off. These are public
