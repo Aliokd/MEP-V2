@@ -14,7 +14,13 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
  */
 const firebaseConfig = {
     apiKey: "AIzaSyDakTEN2xkmYPR6ZAUUq3e1fXojAuY3E7M",
-    authDomain: "mep-v2.firebaseapp.com",
+    // The site's own domain, not the project's firebaseapp.com one: Hosting
+    // serves /__/auth/* on veinote.com, the OAuth client lists
+    // https://veinote.com/__/auth/handler as a redirect URI (added 2026-09-20),
+    // and the redirect fallback (Safari, Firefox, iPhone with pop-ups blocked)
+    // only completes when this matches the page's origin. Google's consent
+    // screen also names this domain, so it reads "continue to veinote.com".
+    authDomain: "veinote.com",
     projectId: "mep-v2",
     storageBucket: "mep-v2.firebasestorage.app",
     messagingSenderId: "828311508339",

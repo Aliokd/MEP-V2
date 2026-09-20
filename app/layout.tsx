@@ -101,9 +101,12 @@ export async function generateMetadata(): Promise<Metadata> {
             locale: OG_LOCALES[language],
             images: [
                 {
-                    url: '/assets/footer_bg_stockholm.png',
-                    width: 1024,
-                    height: 529,
+                    // A purpose-made 1200x630 card (wordmark, tagline, brand
+                    // blobs), the size every network crops to. The footer photo
+                    // it replaces was 1024x529 and half a megabyte.
+                    url: '/assets/og-veinote.png',
+                    width: 1200,
+                    height: 630,
                     alt: 'Veinote, the home of human songwriting',
                 },
             ],
@@ -112,7 +115,7 @@ export async function generateMetadata(): Promise<Metadata> {
             card: 'summary_large_image',
             title: t('meta.title'),
             description: t('meta.description'),
-            images: ['/assets/footer_bg_stockholm.png'],
+            images: ['/assets/og-veinote.png'],
         },
         // Google's token is committed because it was already live. Bing's and
         // Yandex's come from the environment so they can be added after their
