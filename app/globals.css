@@ -1395,41 +1395,71 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     94%, 100% { opacity: 0; transform: translateX(-3px); }
 }
 
-/* Lectures: two lessons, one playing at a time, the play head crossing each in
-   turn. 12s round, 6s a lesson. */
-@keyframes plan-playhead-a {
+/* Lectures: one lesson plays and the song fills in behind it, a part at a
+   time, until it is marked finished. 12s round. The play head runs to 80%,
+   the parts land at 16/32/48/64%, the finished pill follows the last one, and
+   everything clears together at 92% rather than each on its own clock. */
+@keyframes plan-lesson-play {
     0% { transform: scaleX(0); }
-    46% { transform: scaleX(1); }
-    50%, 100% { transform: scaleX(0); }
+    80%, 90% { transform: scaleX(1); }
+    96%, 100% { transform: scaleX(0); }
 }
-@keyframes plan-playhead-b {
-    0%, 50% { transform: scaleX(0); }
-    96% { transform: scaleX(1); }
-    100% { transform: scaleX(0); }
+@keyframes plan-part-1 {
+    0%, 12% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
+    16%, 90% { background-color: rgba(134, 190, 127, 0.55); color: #1c1917; }
+    94%, 100% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
 }
-@keyframes plan-lesson-a {
-    0%, 46% { transform: scale(1); filter: saturate(1); }
-    52%, 96% { transform: scale(0.96); filter: saturate(0.7); }
-    100% { transform: scale(1); filter: saturate(1); }
+@keyframes plan-part-2 {
+    0%, 28% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
+    32%, 90% { background-color: rgba(134, 190, 127, 0.55); color: #1c1917; }
+    94%, 100% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
 }
-@keyframes plan-lesson-b {
-    0%, 46% { transform: scale(0.96); filter: saturate(0.7); }
-    52%, 96% { transform: scale(1); filter: saturate(1); }
-    100% { transform: scale(0.96); filter: saturate(0.7); }
+@keyframes plan-part-3 {
+    0%, 44% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
+    48%, 90% { background-color: rgba(134, 190, 127, 0.55); color: #1c1917; }
+    94%, 100% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
+}
+@keyframes plan-part-4 {
+    0%, 60% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
+    64%, 90% { background-color: rgba(134, 190, 127, 0.55); color: #1c1917; }
+    94%, 100% { background-color: rgba(28, 25, 23, 0.07); color: #78716c; }
+}
+@keyframes plan-done {
+    0%, 70% { opacity: 0; transform: translateY(6px) scale(0.96); }
+    76%, 90% { opacity: 1; transform: translateY(0) scale(1); }
+    95%, 100% { opacity: 0; transform: translateY(-3px) scale(0.98); }
 }
 
-/* Community: faces drifting, each on its own clock. One keyframe, and the
-   variation comes from per-bubble duration and delay. */
-@keyframes plan-drift {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-10px) scale(1.04); }
+/* Community: a second cursor arrives on the canvas, a line comes in under the
+   first a word at a time, a reaction lands on it. 9s round. The words carry
+   their own small delays inline; the cursor, the joining face and the
+   reaction share the one clock. */
+@keyframes plan-collab-cursor {
+    0%, 6% { transform: translate(72px, 26px); opacity: 0; }
+    12% { opacity: 1; }
+    26%, 84% { transform: translate(0, 0); opacity: 1; }
+    92%, 100% { transform: translate(0, 0); opacity: 0; }
+}
+@keyframes plan-type {
+    0%, 28% { opacity: 0; transform: translateY(2px); }
+    34%, 86% { opacity: 1; transform: translateY(0); }
+    94%, 100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes plan-join {
+    0%, 4% { opacity: 0; transform: scale(0.8); }
+    12%, 88% { opacity: 1; transform: scale(1); }
+    96%, 100% { opacity: 0; transform: scale(0.9); }
+}
+@keyframes plan-react {
+    0%, 52% { opacity: 0; transform: translateY(6px) scale(0.96); }
+    60%, 84% { opacity: 1; transform: translateY(0) scale(1); }
+    92%, 100% { opacity: 0; transform: translateY(-3px) scale(0.98); }
 }
 
 /* The classes that hang the loops above on the tiles. One duration per tile,
    shared by everything inside it, so the beats written as percentages line up:
-   7s for the canvas, 12s for the pair of lessons. The bubbles get their
-   duration and delay inline instead — the variation between them IS the
-   effect, so it belongs with the bubble rather than in a class. */
+   7s for the canvas, 12s for the lesson, 9s for the collaborator. The typed
+   words carry a small delay inline, so they arrive one after another. */
 .plan-anim-cursor,
 .plan-anim-cursor-tap,
 .plan-anim-word,
@@ -1459,34 +1489,56 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.plan-anim-lesson-a,
-.plan-anim-lesson-b,
-.plan-anim-playhead-a,
-.plan-anim-playhead-b {
+.plan-anim-lesson-play,
+.plan-anim-part-1,
+.plan-anim-part-2,
+.plan-anim-part-3,
+.plan-anim-part-4,
+.plan-anim-done {
     animation-duration: 12s;
     animation-iteration-count: infinite;
 }
-.plan-anim-lesson-a {
-    animation-name: plan-lesson-a;
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-.plan-anim-lesson-b {
-    animation-name: plan-lesson-b;
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-.plan-anim-playhead-a {
-    animation-name: plan-playhead-a;
+.plan-anim-lesson-play {
+    animation-name: plan-lesson-play;
     animation-timing-function: linear;
 }
-.plan-anim-playhead-b {
-    animation-name: plan-playhead-b;
-    animation-timing-function: linear;
+.plan-anim-part-1 { animation-name: plan-part-1; }
+.plan-anim-part-2 { animation-name: plan-part-2; }
+.plan-anim-part-3 { animation-name: plan-part-3; }
+.plan-anim-part-4 { animation-name: plan-part-4; }
+.plan-anim-part-1,
+.plan-anim-part-2,
+.plan-anim-part-3,
+.plan-anim-part-4 {
+    animation-timing-function: ease-out;
+}
+.plan-anim-done {
+    animation-name: plan-done;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.plan-anim-drift {
-    animation-name: plan-drift;
-    animation-timing-function: ease-in-out;
+.plan-anim-collab-cursor,
+.plan-anim-type,
+.plan-anim-join,
+.plan-anim-react {
+    animation-duration: 9s;
     animation-iteration-count: infinite;
+}
+.plan-anim-collab-cursor {
+    animation-name: plan-collab-cursor;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+}
+.plan-anim-type {
+    animation-name: plan-type;
+    animation-timing-function: ease-out;
+}
+.plan-anim-join {
+    animation-name: plan-join;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.plan-anim-react {
+    animation-name: plan-react;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

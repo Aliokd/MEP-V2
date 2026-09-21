@@ -2094,8 +2094,8 @@
     "verdict": {
       "sections": {
         "tools": {
-          "title": "Verktyg som hänger med",
-          "desc": "En canvas för text, röstmemon och filer. Rim och synonymer ett klick bort.",
+          "title": "En canvas för hela låten",
+          "desc": "Skriv det, sjung det eller fota det från ett papper. Text, röstmemon och tagningar hålls ihop, med rim och en demostudio ett klick bort.",
           "line_before": "tystnaden efter",
           "word": "regnet",
           "lexicon_label": "Rim",
@@ -2103,11 +2103,18 @@
         },
         "lectures": {
           "title": "Lektioner som gör låtar färdiga",
-          "desc": "Korta lektioner om struktur, verser och refränger, från en platinalåtskrivare."
+          "desc": "Från en idé till en färdig låt, en del i taget, med en platinalåtskrivare som lärare.",
+          "parts": "Vers|Pre|Refräng|Stick",
+          "done": "Låten är klar"
         },
         "community": {
           "title": "Låtskrivare att skriva med",
-          "desc": "Feedback, samarbete och människor som håller på med samma sak som du."
+          "desc": "Skriv på samma canvas live, dela tagningar och få ärlig feedback från människor som håller på med samma sak.",
+          "you": "Du",
+          "name": "Mara",
+          "line": "tystnaden efter regnet",
+          "typed": "och gatorna|glänser|än",
+          "reaction": "Älskar den här raden"
         }
       },
       "headline": "Första observationen.",

@@ -2094,8 +2094,8 @@
     "verdict": {
       "sections": {
         "tools": {
-          "title": "Verktøy som henger med",
-          "desc": "Én canvas for tekst, talememoer og filer. Rim og synonymer ett klikk unna.",
+          "title": "Én canvas for hele låten",
+          "desc": "Skriv det, syng det eller fotografer det fra et ark. Tekst, talememoer og opptak blir samlet, med rim og et demostudio ett klikk unna.",
           "line_before": "stillheten etter",
           "word": "regnet",
           "lexicon_label": "Rim",
@@ -2103,11 +2103,18 @@
         },
         "lectures": {
           "title": "Leksjoner som gjør låter ferdige",
-          "desc": "Korte leksjoner om struktur, vers og refreng, fra en platinalåtskriver."
+          "desc": "Fra en idé til en ferdig låt, én del om gangen, med en platinalåtskriver som lærer.",
+          "parts": "Vers|Pre|Refreng|Bro",
+          "done": "Låten er ferdig"
         },
         "community": {
           "title": "Låtskrivere å skrive med",
-          "desc": "Tilbakemeldinger, samarbeid og folk som holder på med det samme som deg."
+          "desc": "Skriv på samme canvas live, del opptak og få ærlige tilbakemeldinger fra folk som holder på med det samme.",
+          "you": "Du",
+          "name": "Mara",
+          "line": "stillheten etter regnet",
+          "typed": "og gatene|skinner|ennå",
+          "reaction": "Elsker denne linja"
         }
       },
       "headline": "Første observasjon.",

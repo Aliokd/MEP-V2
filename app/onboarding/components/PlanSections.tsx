@@ -1,6 +1,6 @@
 "use client";
 
-import { Play } from 'lucide-react';
+import { Check, Heart, Play } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 /**
@@ -19,48 +19,31 @@ import { useLanguage } from '@/context/LanguageContext';
  * step, three unrelated pictures do not need to agree on a clock, and a tab
  * that stops compositing pauses them all rather than stranding one half-drawn.
  *
- * PLACEHOLDER ART, in two of the three:
- *
- * — Lectures uses the poster frames of the real fundamentals lessons, which is
- *   honest as far as it goes: those are the lessons. It is not the video, and
- *   the videos are 5-17MB each, which is not something to autoplay behind copy.
- *   A short, compressed loop cut from a lesson would be the real answer.
- * — Community draws monograms, not faces. There is no licensed set of member
- *   portraits in the project, and inventing people to populate a community
- *   screen is the same misrepresentation as inventing the testimonials above
- *   it. Fill COMMUNITY_FACES with real member portraits and they will be drawn
- *   instead — the shape is the same as the testimonials' `image`.
+ * PLACEHOLDER ART: the lesson tile uses a poster frame of the real
+ * fundamentals lesson, which is honest as far as it goes: that is the lesson,
+ * and the teacher. It is a still, not the video. The videos are 5-17MB each,
+ * which is not something to autoplay behind copy; a short compressed loop cut
+ * from one would be the real answer. The collaborator on the community tile is
+ * a drawn cursor with a first name on it, the way one appears in the canvas,
+ * and claims nothing about anyone.
  */
 
-/**
- * Poster frames from the fundamentals lessons, used at thumbnail size.
- *
- * Cut from the lesson videos with ffmpeg (8 s in, 640 px wide, webp) and
- * committed here rather than pointed at under /videos: that folder holds
- * the multi-hundred-megabyte sources and is gitignored, so the posters it
- * used to reference were never deployed and the verdict page shipped two
- * broken images from the day it went live.
- */
-const LESSONS = [
-    { poster: '/onboarding-cards/lesson-intro.webp' },
-    { poster: '/onboarding-cards/lesson-verse.webp' },
-] as const;
+/** A poster frame from the fundamentals lesson, cut with ffmpeg and committed
+    under /onboarding-cards; /videos is gitignored and never deploys. */
+const LESSON_POSTER = '/onboarding-cards/lesson-intro.webp';
 
-/**
- * The community bubbles. `image` is a path under /public when there is a real
- * portrait to show; without one the initials are drawn in its place.
- *
- * The drift is per-bubble on purpose — one duration for all six would read as a
- * carousel of avatars rather than as people milling about.
- */
-const COMMUNITY_FACES = [
-    { initials: 'AE', image: undefined as string | undefined, size: 52, x: 4, y: 18, dur: 5.5, delay: 0 },
-    { initials: 'JK', image: undefined as string | undefined, size: 44, x: 26, y: 52, dur: 6.5, delay: 0.6 },
-    { initials: 'MR', image: undefined as string | undefined, size: 60, x: 44, y: 8, dur: 7.2, delay: 1.1 },
-    { initials: 'PS', image: undefined as string | undefined, size: 46, x: 62, y: 56, dur: 6, delay: 0.3 },
-    { initials: 'TB', image: undefined as string | undefined, size: 40, x: 82, y: 24, dur: 8, delay: 1.6 },
-    { initials: 'LN', image: undefined as string | undefined, size: 36, x: 16, y: 4, dur: 6.8, delay: 2.1 },
-] as const;
+/** The space between typed words. A plain space would collapse at a span
+    boundary the moment its neighbour was invisible. */
+const NBSP = '\u00a0';
+
+/** "Mara L." to "ML": what a name looks like without a portrait. */
+const initialsOf = (name: string) =>
+    name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('');
 
 /** The canvas being used: a word picked, and its rhymes opening under it. */
 const ToolsArt = () => {
@@ -116,69 +99,122 @@ const ToolsArt = () => {
     );
 };
 
-/** Two lessons, one playing at a time. */
-const LecturesArt = () => (
-    <div aria-hidden="true" className="flex h-full w-full items-center gap-3 overflow-hidden rounded-[18px] border border-white/60 bg-white/80 p-4">
-        {LESSONS.map((lesson, i) => (
-            <div
-                key={lesson.poster}
-                className={`relative flex-1 overflow-hidden rounded-[12px] bg-stone-900 shadow-sm ${
-                    i === 0 ? 'plan-anim-lesson-a' : 'plan-anim-lesson-b'
-                }`}
-            >
-                {/* Eager, not lazy. They are 78KB between them and they are
-                    the whole tile: a lazy image that decides it is out of view
-                    leaves a black rectangle where the lessons should be. */}
-                <img
-                    src={lesson.poster}
-                    alt=""
-                    className="h-[86px] w-full object-cover opacity-90"
-                />
-                <span className="absolute inset-0 grid place-items-center">
-                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white/85 text-stone-900">
-                        <Play size={12} className="ml-[1px] fill-current" />
-                    </span>
-                </span>
-                {/* The play head, filling from the left edge of its own card. */}
-                <span className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25">
-                    <span
-                        className={`block h-full origin-left bg-[#86BE7F] ${
-                            i === 0 ? 'plan-anim-playhead-a' : 'plan-anim-playhead-b'
-                        }`}
-                    />
-                </span>
-            </div>
-        ))}
-    </div>
-);
+/**
+ * A lesson finishing a song. The lesson plays on the left; on the right the
+ * song's structure fills in a part at a time as the play head advances, and
+ * when the last part lands the song is marked finished. The title says lessons
+ * finish songs, so the picture shows exactly that and nothing else.
+ */
+const LecturesArt = () => {
+    const { t } = useLanguage();
+    const parts = t('onboarding.verdict.sections.lectures.parts').split('|');
 
-/** People, drifting. */
-const CommunityArt = () => (
-    <div aria-hidden="true" className="relative h-full w-full overflow-hidden rounded-[18px] border border-white/60 bg-white/80">
-        {COMMUNITY_FACES.map((face) => (
-            <span
-                key={face.initials}
-                className="plan-anim-drift absolute grid place-items-center overflow-hidden rounded-full bg-[#EFF0E7] ring-1 ring-stone-300/70"
-                style={{
-                    left: `${face.x}%`,
-                    top: `${face.y}%`,
-                    width: face.size,
-                    height: face.size,
-                    animationDuration: `${face.dur}s`,
-                    animationDelay: `${face.delay}s`,
-                }}
-            >
-                {face.image ? (
-                    <img src={face.image} alt="" className="h-full w-full object-cover" loading="lazy" />
-                ) : (
-                    <span className="text-[11px] font-semibold tracking-wide text-stone-500">
-                        {face.initials}
+    return (
+        <div aria-hidden="true" className="relative h-full w-full overflow-hidden rounded-[18px] border border-white/60 bg-white/80 p-3">
+            <div className="flex items-start gap-3">
+                <div className="relative h-[56px] w-[84px] shrink-0 overflow-hidden rounded-[10px] bg-stone-900 shadow-sm">
+                    {/* Eager, not lazy. It is small and it is the lesson: a
+                        lazy image that decides it is out of view leaves a
+                        black rectangle where the teacher should be. */}
+                    <img src={LESSON_POSTER} alt="" className="h-full w-full object-cover opacity-90" />
+                    <span className="absolute inset-0 grid place-items-center">
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-white/85 text-stone-900">
+                            <Play size={10} className="ml-[1px] fill-current" />
+                        </span>
                     </span>
-                )}
+                    <span className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25">
+                        <span className="plan-anim-lesson-play block h-full origin-left bg-[#86BE7F]" />
+                    </span>
+                </div>
+                {/* The lesson's title, as bars. Legible words here would be a
+                    second thing to read beside the parts that matter. */}
+                <div className="flex-1 space-y-2 pt-1.5">
+                    <div className="h-2 w-[82%] rounded-full bg-stone-900/10" />
+                    <div className="h-2 w-[54%] rounded-full bg-stone-900/10" />
+                </div>
+            </div>
+
+            {/* The song, as its parts. Each fills as the lesson reaches it. */}
+            <div className="mt-3 flex gap-1.5">
+                {parts.map((part, i) => (
+                    <span
+                        key={part}
+                        className={`plan-anim-part-${i + 1} flex-1 rounded-[7px] bg-stone-900/[0.07] py-1.5 text-center text-[10px] font-semibold leading-none text-stone-500`}
+                    >
+                        {part}
+                    </span>
+                ))}
+            </div>
+
+            <span className="plan-anim-done absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-stone-900 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                <Check size={11} className="stroke-[3px]" />
+                {t('onboarding.verdict.sections.lectures.done')}
             </span>
-        ))}
-    </div>
-);
+        </div>
+    );
+};
+
+/**
+ * Someone else writing on the same canvas. A second cursor arrives with a name
+ * on it, a line appears under the first one a word at a time, and a reaction
+ * lands on it. Two people and one song, which is what the title promises.
+ *
+ * The cursor sits inline after the last word rather than at fixed coordinates,
+ * so it lands at the end of the line in every language; the words are in the
+ * flow at zero opacity, which is what keeps that end where it is.
+ */
+const CommunityArt = () => {
+    const { t } = useLanguage();
+    const typed = t('onboarding.verdict.sections.community.typed').split('|');
+    const name = t('onboarding.verdict.sections.community.name');
+
+    return (
+        <div aria-hidden="true" className="relative h-full w-full overflow-hidden rounded-[18px] border border-white/60 bg-white/80 p-4">
+            {/* Who is in the room, top right. The second face joins as the
+                cursor arrives. */}
+            <span className="absolute right-3 top-3 flex -space-x-2">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-[#EFF0E7] text-[9px] font-semibold text-stone-500 ring-2 ring-white">
+                    {t('onboarding.verdict.sections.community.you')}
+                </span>
+                <span className="plan-anim-join grid h-6 w-6 place-items-center rounded-full bg-[#86BE7F] text-[9px] font-semibold text-stone-900 ring-2 ring-white">
+                    {initialsOf(name)}
+                </span>
+            </span>
+
+            <div className="space-y-2.5 pr-14">
+                <div className="h-2 w-[64%] rounded-full bg-stone-900/10" />
+                <p className="text-[13px] font-medium leading-none text-stone-700">
+                    {t('onboarding.verdict.sections.community.line')}
+                </p>
+                <p className="whitespace-nowrap text-[13px] font-medium leading-none text-stone-700">
+                    {typed.map((word, i) => (
+                        <span
+                            key={word}
+                            className="plan-anim-type inline-block"
+                            style={{ animationDelay: `${i * 0.45}s` }}
+                        >
+                            {word}
+                            {i < typed.length - 1 ? NBSP : null}
+                        </span>
+                    ))}
+                    <span className="plan-anim-collab-cursor relative -top-[2px] ml-0.5 inline-flex items-start">
+                        <svg width="14" height="16" viewBox="0 0 16 18" fill="none">
+                            <path d="M1 1L1 14.5L4.8 11.2L7.2 16.5L9.6 15.4L7.2 10.2L12 10.2L1 1Z" fill="#5F9857" stroke="white" strokeWidth="1.2" strokeLinejoin="round" />
+                        </svg>
+                        <span className="ml-0.5 mt-2.5 rounded-full bg-[#86BE7F] px-1.5 py-0.5 text-[9px] font-semibold leading-none text-stone-900">
+                            {name}
+                        </span>
+                    </span>
+                </p>
+            </div>
+
+            <span className="plan-anim-react absolute bottom-3 left-4 inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-1 text-[10px] font-semibold text-stone-700 shadow-sm">
+                <Heart size={10} className="fill-[#f0a8c9] stroke-[#f0a8c9]" />
+                {t('onboarding.verdict.sections.community.reaction')}
+            </span>
+        </div>
+    );
+};
 
 const SECTIONS = [
     { id: 'tools', Art: ToolsArt },

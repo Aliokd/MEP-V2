@@ -2116,8 +2116,8 @@
     "verdict": {
       "sections": {
         "tools": {
-          "title": "Tools that keep up",
-          "desc": "One canvas for words, voice notes and files. Rhymes and synonyms a click away.",
+          "title": "One canvas for the whole song",
+          "desc": "Type it, sing it or photograph it off a page. Words, voice notes and takes stay together, with rhymes and a demo studio one click away.",
           "line_before": "the quiet after the",
           "word": "rain",
           "lexicon_label": "Rhymes",
@@ -2125,11 +2125,18 @@
         },
         "lectures": {
           "title": "Lessons that finish songs",
-          "desc": "Short lessons on structure, verses and choruses, from a platinum songwriter."
+          "desc": "From an idea to a finished song, one part at a time, taught by a platinum songwriter.",
+          "parts": "Verse|Pre|Chorus|Bridge",
+          "done": "Song finished"
         },
         "community": {
           "title": "Songwriters to write with",
-          "desc": "Feedback, collaboration and people who are working on the same thing."
+          "desc": "Write on the same canvas live, trade takes, and get honest feedback from people working on the same thing.",
+          "you": "You",
+          "name": "Mara",
+          "line": "the quiet after the rain",
+          "typed": "and the|streets|still shine",
+          "reaction": "Love this line"
         }
       },
       "headline": "Initial observation.",
