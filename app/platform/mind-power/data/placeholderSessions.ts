@@ -23,6 +23,11 @@ export const PLACEHOLDER_SESSIONS: StayAheadSessionDoc[] = [
         description: {
             en: 'Relaxation fundamentals description Relaxation fundamentals description Relaxation fundamentals description Relaxation fundamentals description Relaxation fundamentals description.',
         },
+        // A real file, so the player's poster, skeleton and preload behaviour can
+        // be seen in development. Any site asset would do; this one is already
+        // compressed the way a session video should be.
+        videoUrl: '/assets/Peter video 2.mp4',
+        posterUrl: '/assets/Up.webp',
     },
     {
         id: 'placeholder-yoga-2',

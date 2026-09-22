@@ -191,3 +191,99 @@ export function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
+
+// ---- Is this file fit to publish? ----
+
+/**
+ * What a web video should be, and what the console measures a chosen file
+ * against. These mirror scripts/upload-lesson-video.mjs, which is what
+ * produced the Learn videos: 720p, H.264, faststart.
+ */
+export const VIDEO_TARGET = {
+    maxWidth: 1280,
+    /** Megabits per second, averaged over the file. 720p talking head sits near 1.5. */
+    maxBitrateMbps: 3,
+    /** Above this, the upload itself is slow and so is every first view. */
+    maxBytes: 40 * 1024 * 1024,
+};
+
+export interface VideoVerdict {
+    /** null when the container is not MP4 and the question does not apply. */
+    fastStart: boolean | null;
+    bitrateMbps: number | null;
+    /** Everything wrong with it, in the order it matters. Empty means fit to publish. */
+    problems: string[];
+}
+
+/**
+ * Whether an MP4's index sits before its media data.
+ *
+ * This is the difference between a video that starts playing while it
+ * downloads and one that plays only once the whole file has arrived. Camera
+ * and editor exports routinely put the index (`moov`) last, which is why a
+ * 40 MB session can feel broken while a 60 MB lesson does not. ffmpeg's
+ * `-movflags +faststart` moves it to the front.
+ *
+ * Walks the top-level box headers from the start of the file, reading 16
+ * bytes at a time, and stops at whichever of the two comes first.
+ */
+export async function hasFastStart(file: File): Promise<boolean | null> {
+    const head = new DataView(await file.slice(0, 12).arrayBuffer());
+    if (head.byteLength < 12) return null;
+    const type = String.fromCharCode(head.getUint8(4), head.getUint8(5), head.getUint8(6), head.getUint8(7));
+    // Only MP4/MOV carry these boxes; WebM and others are a different question.
+    if (type !== 'ftyp') return null;
+
+    let offset = 0;
+    // A sane file has a handful of top-level boxes; the cap is a guard against
+    // a malformed one walking forever.
+    for (let i = 0; i < 64 && offset + 8 <= file.size; i++) {
+        const view = new DataView(await file.slice(offset, offset + 16).arrayBuffer());
+        if (view.byteLength < 8) return null;
+        const boxType = String.fromCharCode(view.getUint8(4), view.getUint8(5), view.getUint8(6), view.getUint8(7));
+        if (boxType === 'moov') return true;
+        if (boxType === 'mdat') return false;
+
+        let size = view.getUint32(0);
+        // size 1 means the real length is the 64-bit number that follows; size 0
+        // means "to the end of the file", so nothing can follow it.
+        if (size === 1) {
+            if (view.byteLength < 16) return null;
+            size = Number(view.getBigUint64(8));
+        } else if (size === 0) {
+            return false;
+        }
+        if (size < 8) return null;
+        offset += size;
+    }
+    return null;
+}
+
+/** Measures a chosen video against VIDEO_TARGET and says what is wrong with it. */
+export async function inspectVideo(file: File, probe: VideoProbe | null): Promise<VideoVerdict> {
+    const problems: string[] = [];
+    const seconds = probe?.durationSeconds || 0;
+    const bitrateMbps = seconds > 0 ? (file.size * 8) / seconds / 1_000_000 : null;
+
+    let fastStart: boolean | null = null;
+    try {
+        fastStart = await hasFastStart(file);
+    } catch {
+        // Unreadable header: say nothing rather than something wrong.
+    }
+
+    if (fastStart === false) {
+        problems.push('its index sits at the end, so nothing plays until the whole file has downloaded');
+    }
+    if (file.size > VIDEO_TARGET.maxBytes) {
+        problems.push(`it is ${formatBytes(file.size)}, over the ${formatBytes(VIDEO_TARGET.maxBytes)} a session should need`);
+    }
+    if (probe && probe.width > VIDEO_TARGET.maxWidth) {
+        problems.push(`it is ${probe.width}px wide, and nothing here is shown above ${VIDEO_TARGET.maxWidth}px`);
+    }
+    if (bitrateMbps !== null && bitrateMbps > VIDEO_TARGET.maxBitrateMbps) {
+        problems.push(`it runs at ${bitrateMbps.toFixed(1)} Mbps, about ${Math.round(bitrateMbps / 1.5)}x what this needs`);
+    }
+
+    return { fastStart, bitrateMbps, problems };
+}

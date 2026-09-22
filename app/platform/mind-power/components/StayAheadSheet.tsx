@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { pickLocale, type Locale, type StayAheadSessionDoc } from '@/lib/content';
 import { isBlockRenderable, type LessonBlock } from '@/lib/lessonBlocks';
 import LessonBlocks from '@/app/platform/components/LessonBlocks';
+import VideoStage from '@/app/platform/components/VideoStage';
 import { toggleStayAheadDone, useStayAheadDone } from '@/lib/stayAheadMarks';
 
 /**
@@ -223,26 +224,25 @@ export default function StayAheadSheet({ cardTitle, sessions, locale, t, onClose
                                     </p>
                                 )}
 
-                                {s.videoUrl ? (
-                                    <video
-                                        controls
-                                        playsInline
-                                        // Nothing is fetched until it is played: the
-                                        // whole sequence is on the page at once.
-                                        preload="none"
+                                {/* The same frame Learn uses: poster first, a skeleton
+                                    while it arrives, one play control. Only the session
+                                    being read preloads — the whole sequence is on the
+                                    page at once, and they would otherwise all download
+                                    together. */}
+                                {(s.videoUrl || blocks.length === 0) && (
+                                    <VideoStage
+                                        src={s.videoUrl || ''}
                                         poster={s.posterUrl || undefined}
-                                        src={s.videoUrl}
-                                        className="w-full rounded-[18px] border border-white/10 bg-black"
-                                    />
-                                ) : (
-                                    blocks.length === 0 && (
-                                        // A session with neither a video nor a block is
-                                        // one an editor published early. Show the frame
-                                        // rather than a gap that reads as a failure.
-                                        <div className="flex aspect-video w-full items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03]">
+                                        tone="dark"
+                                        active={i === index}
+                                        fallbackText={t('progress.sa_video_unsupported')}
+                                        placeholder={
+                                            // A session with neither a video nor a block is
+                                            // one an editor published early. Show the frame
+                                            // rather than a gap that reads as a failure.
                                             <Play size={54} strokeWidth={0} fill="rgba(245,244,238,0.16)" aria-hidden />
-                                        </div>
-                                    )
+                                        }
+                                    />
                                 )}
 
                                 {blocks.length > 0 && (

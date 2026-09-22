@@ -2,6 +2,14 @@
 
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import VideoStage from './VideoStage';
+
+/**
+ * A lesson's video. The frame, the poster-first sequence and the play overlay
+ * are VideoStage, shared with Mind Power's Stay ahead sessions; what is here
+ * is the part that belongs to Learn: the lesson's own progress reporting, and
+ * starting the next lesson's video when Next moves to it.
+ */
 
 interface LessonContentProps {
     lesson: {
@@ -22,135 +30,23 @@ export default function LessonContent({
     onVideoEnd,
 }: LessonContentProps) {
     const { t } = useLanguage();
-    // Tracks whether playback has ever started for this lesson — the custom
-    // play overlay only covers the initial poster state, not every pause, so
-    // native controls (scrubbing, volume, fullscreen) stay reachable once started.
-    const [hasStarted, setHasStarted] = React.useState(false);
-    // False until there is something real to show. The wait the user sees is
-    // almost entirely the poster JPEG downloading — a large photo paints
-    // progressively, so without this the box showed a strip of image over a
-    // grey void. Until ready, a skeleton holds the space and the half-painted
-    // poster stays hidden.
-    const [ready, setReady] = React.useState(false);
-    const videoRef = React.useRef<HTMLVideoElement>(null);
-    const isInitialMount = React.useRef(true);
-
-    // Reset to the poster state whenever the lesson changes
-    React.useEffect(() => {
-        setHasStarted(false);
-        setReady(false);
-    }, [lesson.id]);
-
-    // Poster readiness, watched on a detached Image rather than the <video>:
-    // the video element gives no event for "poster finished downloading".
-    // The browser fetches the URL once, so this costs no second download. A
-    // broken poster counts as ready too — better the video's own frame than a
-    // skeleton that never leaves. Lessons without a poster rely on the video's
-    // onLoadedData below instead.
-    React.useEffect(() => {
-        if (!lesson.posterUrl) return;
-        let cancelled = false;
-        const img = new Image();
-        img.onload = () => { if (!cancelled) setReady(true); };
-        img.onerror = () => { if (!cancelled) setReady(true); };
-        img.src = lesson.posterUrl;
-        if (img.complete) setReady(true);
-        return () => { cancelled = true; };
-    }, [lesson.id, lesson.posterUrl]);
-
-    // Pause video immediately when chapter is collapsed/inactive
-    React.useEffect(() => {
-        if (!isActive && videoRef.current) {
-            videoRef.current.pause();
-        }
-    }, [isActive]);
-
-    // Autoplay when lesson ID changes (e.g. Next / Back / clicking a lesson card)
-    React.useEffect(() => {
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-            return;
-        }
-        if (isActive && videoRef.current) {
-            videoRef.current.play().then(() => {
-                setHasStarted(true);
-            }).catch(err => {
-                console.log("Autoplay prevented:", err);
-            });
-        }
-    }, [lesson.id, isActive]);
-
-    const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-        const video = e.currentTarget;
-        if (video.duration) {
-            const progress = (video.currentTime / video.duration) * 100;
-            onProgressUpdate?.(progress);
-        }
-    };
-
-    const handlePlayOverlayClick = () => {
-        if (videoRef.current) {
-            videoRef.current.play().then(() => {
-                setHasStarted(true);
-            }).catch(err => {
-                console.error("Video play error:", err);
-            });
-        }
-    };
 
     return (
-        <div className="w-full relative aspect-video bg-stone-100 border border-stone-200/60 rounded-[14px] flex items-center justify-center overflow-hidden transition-all duration-500 group/video shadow-xs">
-            {lesson.videoUrl ? (
-                <video
-                    ref={videoRef}
-                    key={lesson.videoUrl}
-                    src={lesson.videoUrl}
-                    playsInline
-                    // Native controls only once it is running. While the poster is up
-                    // the custom overlay below is the play button; `controls` there put
-                    // a second one in the control bar — and on Android Chrome a third,
-                    // its own large centre button drawn over the poster. One poster,
-                    // one thing to press.
-                    controls={hasStarted}
-                    preload="auto"
-                    poster={lesson.posterUrl}
-                    /* Hidden until ready so the progressively-painting poster is
-                       never visible; fades in once whole. */
-                    className={`w-full h-full object-cover transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`}
-                    onTimeUpdate={handleTimeUpdate}
-                    onPlay={() => setHasStarted(true)}
-                    /* Covers lessons with no poster, and a cached video. */
-                    onLoadedData={() => setReady(true)}
-                    onEnded={onVideoEnd}
-                >
-                    {t('learn.video_not_supported')}
-                </video>
-            ) : (
-                <div className="w-16 h-16 rounded-full border border-stone-300 flex items-center justify-center group-hover/video:scale-110 group-hover/video:border-stone-500 transition-all duration-300">
-                    <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[16px] border-l-stone-700 ml-1" />
+        <VideoStage
+            src={lesson.videoUrl}
+            poster={lesson.posterUrl}
+            tone="paper"
+            active={isActive}
+            autoPlayOnChange
+            onProgressUpdate={onProgressUpdate}
+            onEnded={onVideoEnd}
+            fallbackText={t('learn.video_not_supported')}
+            className="shadow-xs"
+            placeholder={
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-stone-300 transition-all duration-300 group-hover/video:scale-110 group-hover/video:border-stone-500">
+                    <div className="ml-1 h-0 w-0 border-y-[10px] border-l-[16px] border-y-transparent border-l-stone-700" />
                 </div>
-            )}
-
-            {/* Skeleton while the poster downloads — the shimmer sweep, a soft
-                highlight travelling across the stone base (see .skeleton-sweep
-                in globals.css). */}
-            {lesson.videoUrl && !ready && (
-                <div className="absolute inset-0 skeleton-sweep" />
-            )}
-
-            {/* Custom Minimalist Play Overlay — poster state only, doesn't reappear
-                on pause. Gated on `ready` as well: a play button over the skeleton
-                would be an invitation to watch a video that isn't there yet. */}
-            {lesson.videoUrl && ready && !hasStarted && (
-                <div 
-                    onClick={handlePlayOverlayClick}
-                    className="absolute inset-0 bg-stone-900/10 backdrop-blur-xs flex items-center justify-center cursor-pointer transition-all duration-300 hover:bg-stone-900/25 z-10"
-                >
-                    <div className="w-16 h-16 rounded-full border border-white/60 bg-white/10 backdrop-blur-md flex items-center justify-center transition-all duration-350 group-hover/video:scale-110 group-hover/video:border-white group-hover/video:bg-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.1)] active:scale-95">
-                        <div className="w-0 h-0 border-t-[9px] border-t-transparent border-b-[9px] border-b-transparent border-l-[15px] border-l-white ml-1.5" />
-                    </div>
-                </div>
-            )}
-        </div>
+            }
+        />
     );
 }

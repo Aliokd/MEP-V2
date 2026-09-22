@@ -5,15 +5,13 @@ import { Upload, X, Check, TriangleAlert, ExternalLink } from "lucide-react";
 import { Button, Input, Spinner } from "./ui";
 import {
     formatBytes,
+    inspectVideo,
     probeVideo,
     uploadContentMedia,
     type MediaKind,
     type UploadHandle,
     type VideoProbe,
 } from "@/lib/uploadContentMedia";
-
-/** Above this, an upload is slow enough that it should have been compressed first. */
-const LARGE_FILE_BYTES = 200 * 1024 * 1024;
 
 const ACCEPT: Record<MediaKind, string> = {
     video: "video/*",
@@ -61,20 +59,29 @@ export default function MediaUpload({
         setWarning(null);
         setJustFinished(false);
 
-        if (file.size > LARGE_FILE_BYTES) {
-            setWarning(
-                `${formatBytes(file.size)}: this will be slow to upload and slow for learners to load. Consider compressing with scripts/upload-lesson-video.mjs first.`,
-            );
-        }
-
         // Probe before uploading: if the browser can't read the file, the admin
         // finds out in a second rather than after a 300MB upload.
-        if (kind === "video" && onVideoProbed) {
+        if (kind === "video") {
+            let probe: VideoProbe | null = null;
             try {
-                const probe = await probeVideo(file);
-                onVideoProbed(probe, file);
+                probe = await probeVideo(file);
+                onVideoProbed?.(probe, file);
             } catch (err: any) {
                 setWarning(err.message + ". Uploading anyway, but check it plays.");
+            }
+
+            // The Learn videos are fast because they were put through the
+            // compression script; anything dropped straight from a camera or an
+            // editor is not. Say exactly what is wrong and what to run, because
+            // "this might be slow" was ignorable and a 40 MB session with its
+            // index at the end plays nothing until it has all arrived.
+            const verdict = await inspectVideo(file, probe);
+            if (verdict.problems.length > 0) {
+                setWarning(
+                    `This will load slowly: ${verdict.problems.join("; ")}. Compress it first with ` +
+                        `node scripts/upload-lesson-video.mjs "${file.name}" <slug> --skip-upload, ` +
+                        `then drop the .compressed.mp4 it leaves beside the original.`,
+                );
             }
         }
 
