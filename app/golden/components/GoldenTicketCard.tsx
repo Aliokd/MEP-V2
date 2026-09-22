@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import type { PublicGoldenTicket } from '@/lib/goldenTickets';
-import { GOLDEN_TICKETS_TOTAL } from '@/lib/uiFlags';
 import { GOLDEN } from '../content';
+import TicketArt from './TicketArt';
+import { STUB_X, W } from './ticketShape';
 
 /**
  * One golden ticket on the wall.
@@ -15,129 +16,14 @@ import { GOLDEN } from '../content';
  *
  * An open ticket (a person on it, not yet taken) is bright and is a link to
  * their page. A ticket already taken (claimed or redeemed) stays on the wall
- * with the name on it but steps back: dimmer, stamped "Taken", nothing to
- * press. A newcomer sees who has come in before them and that their own
- * ticket is the one still lit. An empty slot is the same ticket unissued:
- * paler paper, the number, the watermark, and nothing to press.
+ * with the name on it but steps back: dimmer and nothing to press, so a
+ * newcomer sees who came in before them and that the free ones are the lit
+ * ones. A slot with nobody on it is a full-gold ticket marked Available,
+ * leading to the program page.
+ *
+ * The drawing itself lives in TicketArt, shared with the admin console's
+ * wall, so the hundred look like the same hundred in both places.
  */
-
-/** The page's paper colour, which the notches are "cut" with. */
-const PAPER = '#E6E3DB';
-const W = 400;
-const H = 240;
-const STUB_X = 296;
-const NOTCH_R = 13;
-const RADIUS = 18;
-
-function pad(number: number): string {
-    return String(number).padStart(String(GOLDEN_TICKETS_TOTAL).length, '0');
-}
-
-function TicketArt({ number, issued, id }: { number: number; issued: boolean; id: string }) {
-    const gradientId = `gold-${id}`;
-    const sheenId = `sheen-${id}`;
-    return (
-        <svg
-            viewBox={`0 0 ${W} ${H}`}
-            className="absolute inset-0 w-full h-full"
-            aria-hidden="true"
-            preserveAspectRatio="none"
-        >
-            <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-                    {issued ? (
-                        <>
-                            <stop offset="0" stopColor="#F3CF6F" />
-                            <stop offset="0.55" stopColor="#E3B54A" />
-                            <stop offset="1" stopColor="#C9973A" />
-                        </>
-                    ) : (
-                        <>
-                            <stop offset="0" stopColor="#EFDDA8" />
-                            <stop offset="1" stopColor="#E1C67F" />
-                        </>
-                    )}
-                </linearGradient>
-                <linearGradient id={sheenId} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
-                    <stop offset="0.45" stopColor="#FFFFFF" stopOpacity="0.22" />
-                    <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.28" />
-                    <stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0.22" />
-                    <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-                </linearGradient>
-            </defs>
-
-            {/* Paper */}
-            <rect x="0.5" y="0.5" width={W - 1} height={H - 1} rx={RADIUS} fill={`url(#${gradientId})`} />
-            <rect x="0.5" y="0.5" width={W - 1} height={H - 1} rx={RADIUS} fill={`url(#${sheenId})`} opacity={issued ? 1 : 0.5} />
-            {/* Inner hairline, the printed border of a ticket */}
-            <rect x="9" y="9" width={W - 18} height={H - 18} rx={RADIUS - 8} fill="none" stroke="#1F1F1F" strokeOpacity={issued ? 0.22 : 0.14} strokeWidth="1" />
-
-            {/* The wordmark, printed into the paper. Ink at low opacity reads as
-                a watermark on gold; the same file the site's footer offers. */}
-            <image
-                href="/assets/brand/veinote-wordmark-ink.svg"
-                x="28"
-                y="86"
-                width="240"
-                height="62"
-                opacity={issued ? 0.16 : 0.13}
-                preserveAspectRatio="xMinYMid meet"
-            />
-
-            {/* The stub: a dashed tear line and the notches on the edge. */}
-            <line x1={STUB_X} y1="12" x2={STUB_X} y2={H - 12} stroke="#1F1F1F" strokeOpacity="0.3" strokeWidth="1.2" strokeDasharray="5 5" />
-            <circle cx={STUB_X} cy="0" r={NOTCH_R} fill={PAPER} />
-            <circle cx={STUB_X} cy={H} r={NOTCH_R} fill={PAPER} />
-
-            {/* The number, stamped on the stub, reading up the ticket. */}
-            <text
-                x={(STUB_X + W) / 2}
-                y={H / 2}
-                transform={`rotate(-90 ${(STUB_X + W) / 2} ${H / 2})`}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontFamily="var(--font-app), Helvetica, Arial, sans-serif"
-                fontWeight="600"
-                fontSize="44"
-                letterSpacing="2"
-                fill="#1F1F1F"
-                fillOpacity={issued ? 0.85 : 0.35}
-            >
-                {pad(number)}
-            </text>
-            <text
-                x={STUB_X + 18}
-                y={H / 2}
-                transform={`rotate(-90 ${STUB_X + 18} ${H / 2})`}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontFamily="var(--font-app), Helvetica, Arial, sans-serif"
-                fontWeight="500"
-                fontSize="11"
-                letterSpacing="1.5"
-                fill="#1F1F1F"
-                fillOpacity={issued ? 0.55 : 0.3}
-            >
-                Golden ticket
-            </text>
-
-            {/* Admit-one line on the body, top left. */}
-            <text
-                x="26"
-                y="34"
-                fontFamily="var(--font-app), Helvetica, Arial, sans-serif"
-                fontWeight="500"
-                fontSize="12"
-                letterSpacing="0.5"
-                fill="#1F1F1F"
-                fillOpacity={issued ? 0.6 : 0.35}
-            >
-                {issued ? `Veinote · Ticket ${number} of ${GOLDEN_TICKETS_TOTAL}` : `Ticket ${number} of ${GOLDEN_TICKETS_TOTAL}`}
-            </text>
-        </svg>
-    );
-}
 
 export function GoldenTicketCard({ ticket }: { ticket: PublicGoldenTicket }) {
     const taken = ticket.status === 'claimed' || ticket.status === 'redeemed';
@@ -166,15 +52,7 @@ export function GoldenTicketCard({ ticket }: { ticket: PublicGoldenTicket }) {
                 </div>
             </div>
 
-            {taken ? (
-                // The stamp: a tilted inked frame, the way a ticket is marked used.
-                <div
-                    aria-hidden="true"
-                    className="absolute top-[8%] right-[30%] -rotate-12 rounded-md border-2 border-stone-900/55 px-2 py-0.5 text-[11px] md:text-xs font-semibold tracking-[0.18em] text-stone-900/60 select-none"
-                >
-                    {GOLDEN.wallTaken}
-                </div>
-            ) : (
+            {!taken && (
                 <div className="absolute top-[7%] right-[29%] w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity">
                     <ArrowRight className="w-4 h-4 stroke-[2.2px]" />
                 </div>
@@ -205,10 +83,27 @@ export function GoldenTicketCard({ ticket }: { ticket: PublicGoldenTicket }) {
     );
 }
 
+/**
+ * A ticket with nobody's name on it: full gold, and the one kind of card on
+ * the wall that anybody can press. It leads to the program page, which says
+ * what the ticket holds and how to ask for it.
+ */
 export function EmptyTicketSlot({ number }: { number: number }) {
     return (
-        <div aria-hidden="true" className="relative aspect-[5/3] rounded-[18px] overflow-hidden opacity-80">
-            <TicketArt number={number} issued={false} id={`slot-${number}`} />
-        </div>
+        <Link
+            href={`/golden/ticket/${number}`}
+            aria-label={`Golden ticket ${number}, still available`}
+            className="group relative block aspect-[5/3] rounded-[18px] overflow-hidden shadow-[0_10px_30px_-12px_rgba(120,90,20,0.45)] transition-transform duration-300 hover:-translate-y-1"
+        >
+            <TicketArt number={number} issued id={`slot-${number}`} />
+
+            <div className="absolute inset-y-0 left-0 flex flex-col justify-end p-[6.5%] pr-0" style={{ width: `${(STUB_X / W) * 100}%` }}>
+                <p className="text-stone-900/70 text-[13px] md:text-[15px] font-semibold leading-tight">{GOLDEN.wallAvailable}</p>
+            </div>
+
+            <div className="absolute top-[7%] right-[29%] w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity">
+                <ArrowRight className="w-4 h-4 stroke-[2.2px]" />
+            </div>
+        </Link>
     );
 }

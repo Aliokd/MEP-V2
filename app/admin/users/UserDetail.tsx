@@ -19,7 +19,17 @@ interface Detail {
         billing: Record<string, any> | null;
         sanction: Record<string, any> | null;
         signup: { method?: string; source?: string | null; verifiedAt?: string | null; attribution?: Record<string, string | null> | null } | null;
-        golden: { ticket?: string; redeemedAt?: string } | null;
+        golden: {
+            ticket?: string;
+            redeemedAt?: string;
+            invites?: number;
+            number?: number | null;
+            status?: string | null;
+            listed?: boolean | null;
+            code?: string | null;
+            origin?: string | null;
+            pagePath?: string | null;
+        } | null;
     };
     entitlement: Entitlement;
     auth: { disabled: boolean; emailVerified: boolean; providers: string[]; lastSignInAt: number | null; createdAt: number | null } | null;
@@ -175,8 +185,29 @@ export default function UserDetail({
                                         trial ends {new Date(u!.billing.trialEndsAt).toLocaleDateString()}
                                     </span>
                                 )}
-                                {u!.golden?.ticket && <Badge tone="blue">golden {u!.golden.ticket}</Badge>}
+                                {u!.golden?.ticket && (
+                                    <Badge tone="blue">
+                                        Golden ticket{u!.golden.number ? ` ${String(u!.golden.number).padStart(3, "0")}` : ""}
+                                    </Badge>
+                                )}
                             </div>
+
+                            {/* The ticket behind a lifetime grant: the page to send the
+                                person, the code on it, and whether it hangs on the wall. */}
+                            {u!.golden?.ticket && (
+                                <div className="rounded-xl bg-ink-800 border border-ink-600 p-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                                    <span className="text-ink-400">Golden</span>
+                                    {u!.golden.pagePath && (
+                                        <a href={u!.golden.pagePath} target="_blank" rel="noreferrer" className="text-ink-100 hover:underline">
+                                            {u!.golden.pagePath}
+                                        </a>
+                                    )}
+                                    {u!.golden.code && <code className="text-ink-300 tracking-wider">{u!.golden.code}</code>}
+                                    {u!.golden.listed === false && <Badge tone="neutral">off the wall</Badge>}
+                                    {u!.golden.status === "revoked" && <Badge tone="red">revoked</Badge>}
+                                    <a href="/admin/golden" className="text-ink-400 hover:text-ink-200 ml-auto">Golden program</a>
+                                </div>
+                            )}
 
                             {/* Paddle's record, as last synced. Empty for an account that never
                                 entered a card. */}
@@ -262,7 +293,7 @@ export default function UserDetail({
                             {can("users.write") && (
                                 <div className="flex flex-col gap-2 mt-1">
                                     <span className="text-[11px] text-ink-500">
-                                        Tier. On a paying account, Veinote and Veinote Pro change the plan in Paddle; on any other, they are grants without billing.
+                                        Tier. On a paying account, Veinote and Veinote Pro change the plan in Paddle; on any other, they are grants without billing. Lifetime Pro also issues a golden ticket and puts it on the wall as taken; moving off it takes the ticket back.
                                     </span>
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Select

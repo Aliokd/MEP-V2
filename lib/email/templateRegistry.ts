@@ -110,7 +110,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         id: "golden_ticket",
         label: "Golden ticket",
         whenSent:
-            "When someone takes their ticket on their Golden program page, and from the Golden program console when an admin resends it. Carries the code.",
+            "When someone takes their ticket on their Golden program page, and from the Golden program console when an admin activates or sends one. Carries the code. The '_granted' wordings replace the others when the ticket is already on an existing account, where there is no code left to redeem; the console can also put a line of its own near the top and override the subject.",
         keyPrefix: "golden_ticket",
         fields: [
             "subject",
@@ -118,9 +118,15 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
             "badge",
             "greeting",
             "body_1",
+            // The wording when an admin activated the ticket on an account
+            // that already exists, so there is no code to redeem.
+            "body_1_granted",
             "code_label",
+            "code_label_granted",
             "body_2",
+            "body_2_granted",
             "cta",
+            "cta_granted",
             "benefits_title",
             "benefits",
             "page_line",

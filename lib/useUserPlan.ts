@@ -42,6 +42,12 @@ export interface UserPlan {
     trialEndsAt: string | null;
     trialDaysLeft: number | null;
     billing: BillingDetails;
+    /**
+     * The golden ticket this account holds, when lifetime access came with
+     * one. The slug is the ticket's own page at /golden/{slug}, which is the
+     * page the founders sent them.
+     */
+    golden: { ticket: string; invites: number } | null;
     loading: boolean;
 }
 
@@ -55,6 +61,7 @@ const EMPTY_BILLING: BillingDetails = {
 };
 
 const EMPTY: Omit<UserPlan, 'loading'> = {
+    golden: null,
     access: 'none',
     source: 'none',
     isPro: false,
@@ -123,7 +130,12 @@ export function useUserPlan(): UserPlan {
                 }
 
                 const scheduled = billing.scheduledChange;
+                const goldenTicket = typeof data.golden?.ticket === 'string' ? data.golden.ticket : null;
+
                 setState({
+                    golden: goldenTicket
+                        ? { ticket: goldenTicket, invites: typeof data.golden?.invites === 'number' ? data.golden.invites : 0 }
+                        : null,
                     access: ent.access,
                     source: ent.source,
                     isPro: ent.isPro,

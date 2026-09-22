@@ -77,7 +77,9 @@ export async function POST(request: Request) {
 
             tx.update(ticketRef, {
                 status: "redeemed",
-                redeemedBy: { uid, at: now },
+                // The address is kept beside the uid so the console can say
+                // who holds a ticket without a second lookup per row.
+                redeemedBy: { uid, at: now, email: userSnap.data()?.email ?? null },
                 updatedAt: now,
             });
             tx.set(userRef, {

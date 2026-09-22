@@ -529,6 +529,30 @@ export default function SettingsPage() {
 
                             <p className="text-[13.5px] text-stone-600 leading-relaxed">{describeBilling(plan, t, language)}</p>
 
+                            {/* A golden ticket is the reason some accounts have
+                                lifetime access, so it is named here rather than
+                                left as an unexplained "complimentary". The link
+                                is the holder's own page on the wall. */}
+                            {plan.golden && (
+                                <a
+                                    href={`/golden/${plan.golden.ticket}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-3 rounded-[16px] border border-[#C5A059]/40 bg-[#FBF4E3] px-4 py-3 transition-colors hover:border-[#C5A059]"
+                                >
+                                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#E9B94F] text-stone-900 text-base font-bold">
+                                        ✓
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="block text-[14px] font-semibold text-stone-900">{t('profile.billing.golden_title')}</span>
+                                        <span className="block text-[12.5px] text-stone-600">{t('profile.billing.golden_desc')}</span>
+                                    </span>
+                                    <span className="ml-auto shrink-0 text-[12.5px] font-medium text-stone-700 underline underline-offset-2">
+                                        {t('profile.billing.golden_link')}
+                                    </span>
+                                </a>
+                            )}
+
                             <div className="flex flex-wrap items-center gap-2">
                                 {plan.billing.hasSubscription && (
                                     <button

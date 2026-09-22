@@ -9,6 +9,8 @@ import { isEntitled, getPriceId, type PlanId } from "@/lib/paddle/config";
 import { getPaddle } from "@/lib/paddle/server";
 import { syncFromPaddle } from "@/lib/paddle/sync";
 import { resolveEntitlement } from "@/lib/entitlement";
+import { issueTicketForUser, releaseTicketForUser } from "@/lib/goldenGrants";
+import { COLLECTION as GOLDEN_COLLECTION, getTicket, shapeTicket } from "@/lib/goldenTickets";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +70,12 @@ export const GET = withAdmin("users.read", async (_request, _admin, ctx: Ctx) =>
             adminDb.collection("admins").doc(uid).get(),
         ]);
 
+    // The golden ticket behind a lifetime grant, read so the drawer can name
+    // it rather than print a slug: its number, whether it is on the wall, and
+    // the page to send the person.
+    const goldenSlug = typeof d.golden?.ticket === "string" ? d.golden.ticket : null;
+    const goldenTicket = goldenSlug ? await getTicket(goldenSlug).catch(() => null) : null;
+
     return NextResponse.json({
         user: {
             uid,
@@ -87,7 +95,17 @@ export const GET = withAdmin("users.read", async (_request, _admin, ctx: Ctx) =>
             // How they got here: the onboarding source and, for an ad click,
             // the campaign it came from.
             signup: d.signup || null,
-            golden: d.golden || null,
+            golden: d.golden
+                ? {
+                      ...d.golden,
+                      number: goldenTicket?.number ?? null,
+                      status: goldenTicket?.status ?? null,
+                      listed: goldenTicket?.listed ?? null,
+                      code: goldenTicket?.code ?? null,
+                      origin: goldenTicket?.origin ?? null,
+                      pagePath: goldenSlug ? `/golden/${goldenSlug}` : null,
+                  }
+                : null,
         },
         // What the platform itself concludes from the fields above, so the
         // console never has to re-derive the gate and get it slightly wrong.
@@ -229,6 +247,38 @@ export const PATCH = withAdmin("users.write", async (request, admin, ctx: Ctx) =
         return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
+    // Lifetime access and a golden ticket are two halves of one thing
+    // (lib/goldenGrants.ts). Granting the tier issues the ticket that stands
+    // for it, so the person joins the hundred on the wall with their ticket
+    // marked taken; taking the tier away takes the ticket back.
+    //
+    // Read back rather than inferred from the body: a plan change on a paying
+    // account is written by Paddle's own sync, so what the document says now
+    // is the only trustworthy answer. Best effort in both directions, because
+    // the tier is the grant and a full wall must never fail one.
+    let golden: { outcome: string; slug: string | null; number: number | null } | null = null;
+    if (body.tier !== undefined) {
+        const nextTier = (await ref.get()).data()?.tier ?? null;
+        try {
+            if (nextTier === "comp" && current.tier !== "comp") {
+                const issued = await issueTicketForUser({
+                    uid,
+                    name: current.name || null,
+                    email: current.email || null,
+                    issuedBy: admin.uid,
+                });
+                golden = { outcome: issued.outcome, slug: issued.ticket?.slug ?? null, number: issued.ticket?.number ?? null };
+            } else if (current.tier === "comp" && nextTier !== "comp") {
+                const released = await releaseTicketForUser(uid, admin.uid);
+                golden = released;
+            }
+        } catch (err) {
+            console.error("[admin/users] golden ticket step failed:", err);
+            golden = { outcome: "failed", slug: null, number: null };
+        }
+        if (golden) after.golden = golden;
+    }
+
     await writeAudit({
         actorUid: admin.uid,
         actorEmail: admin.email,
@@ -243,7 +293,7 @@ export const PATCH = withAdmin("users.write", async (request, admin, ctx: Ctx) =
         ...auditContext(request),
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, golden });
 });
 
 /**
@@ -262,6 +312,27 @@ export const DELETE = withAdmin("users.delete", async (request, admin, ctx: Ctx)
 
     const snap = await adminDb.collection("users").doc(uid).get();
     const email = snap.data()?.email || uid;
+
+    // Their golden ticket goes with them. Deleting an account is an erasure,
+    // so the ticket is removed rather than revoked: it carries their name and
+    // address, and it would otherwise hold one of the hundred for somebody
+    // who no longer exists. The number is free for the next person chosen,
+    // and this audit entry is the record that it was ever theirs.
+    const goldenSlug = typeof snap.data()?.golden?.ticket === "string" ? (snap.data()!.golden.ticket as string) : null;
+    let goldenFreed: { slug: string; number: number } | null = null;
+    try {
+        const ticket = goldenSlug ? await getTicket(goldenSlug) : null;
+        const fallback = ticket
+            ? null
+            : await adminDb.collection(GOLDEN_COLLECTION).where("redeemedBy.uid", "==", uid).limit(1).get();
+        const doomed = ticket ?? (fallback && !fallback.empty ? shapeTicket(fallback.docs[0]) : null);
+        if (doomed) {
+            await adminDb.collection(GOLDEN_COLLECTION).doc(doomed.slug).delete();
+            goldenFreed = { slug: doomed.slug, number: doomed.number };
+        }
+    } catch (err) {
+        console.error("[admin/users] removing the deleted account's golden ticket failed:", err);
+    }
 
     const posts = await adminDb.collection("connect_posts").where("authorId", "==", uid).get();
     const batch = adminDb.batch();
@@ -289,9 +360,9 @@ export const DELETE = withAdmin("users.delete", async (request, admin, ctx: Ctx)
         targetId: uid,
         targetLabel: email,
         reason,
-        after: { postsAnonymized: posts.size },
+        after: { postsAnonymized: posts.size, goldenFreed },
         ...auditContext(request),
     });
 
-    return NextResponse.json({ success: true, postsAnonymized: posts.size });
+    return NextResponse.json({ success: true, postsAnonymized: posts.size, goldenFreed });
 });

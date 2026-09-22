@@ -52,13 +52,28 @@ export interface GoldenTicket {
     code: string;
     status: GoldenStatus;
     claim: GoldenClaim | null;
-    redeemedBy: { uid: string; at: string } | null;
+    redeemedBy: { uid: string; at: string; email: string | null } | null;
     /** How many people this ticket may bring in, once invites exist. */
     invites: number;
+    /**
+     * Whether the ticket appears on the public wall at /golden.
+     *
+     * A ticket chosen in the console is the campaign, so it is listed. A
+     * ticket issued because an admin granted lifetime access is not: the
+     * grant is a private act, and putting somebody's name and face on a
+     * public page is a second decision, made with the console's own toggle.
+     * Either way the ticket's own page answers, because that is the link the
+     * founders send to the person.
+     */
+    listed: boolean;
+    /** Where the ticket came from: chosen in the console, or issued with a lifetime grant. */
+    origin: GoldenOrigin;
     createdAt: string;
     updatedAt: string;
     createdBy: string | null;
 }
+
+export type GoldenOrigin = "console" | "grant";
 
 /** What the website shows about a ticket. No email, no code. */
 export interface PublicGoldenTicket {
@@ -105,9 +120,13 @@ export function shapeTicket(doc: FirebaseFirestore.DocumentSnapshot): GoldenTick
             }
             : null,
         redeemedBy: d.redeemedBy && typeof d.redeemedBy === "object"
-            ? { uid: String(d.redeemedBy.uid ?? ""), at: String(d.redeemedBy.at ?? "") }
+            ? { uid: String(d.redeemedBy.uid ?? ""), at: String(d.redeemedBy.at ?? ""), email: str(d.redeemedBy.email) }
             : null,
         invites: typeof d.invites === "number" ? d.invites : 0,
+        // Absent on every ticket minted before the field existed, and those
+        // are the campaign's own, so a missing value reads as listed.
+        listed: d.listed !== false,
+        origin: d.origin === "grant" ? "grant" : "console",
         createdAt: str(d.createdAt) ?? "",
         updatedAt: str(d.updatedAt) ?? "",
         createdBy: str(d.createdBy),
@@ -164,7 +183,7 @@ export async function listTickets(): Promise<GoldenTicket[]> {
 /** The wall as the website shows it: every listed ticket, public fields only. */
 export async function listPublicTickets(): Promise<PublicGoldenTicket[]> {
     const tickets = await listTickets();
-    return tickets.filter((t) => t.status !== "revoked").map(toPublic);
+    return tickets.filter((t) => t.listed && t.status !== "revoked").map(toPublic);
 }
 
 export async function getTicket(slug: string): Promise<GoldenTicket | null> {
@@ -180,13 +199,28 @@ export async function findTicketByCode(code: string): Promise<GoldenTicket | nul
     return snap.empty ? null : shapeTicket(snap.docs[0]);
 }
 
-/** The lowest number no ticket holds yet, or null when the wall is full. */
+/**
+ * The lowest number no live ticket holds, or null when the wall is full.
+ *
+ * A revoked ticket does not hold its number. Revoking is how a spot is given
+ * back: the record of who had it stays for the audit, but the hundred is a
+ * hundred, and the next person chosen takes the empty place rather than
+ * queueing behind a ticket nobody holds.
+ */
 export async function nextFreeNumber(): Promise<number | null> {
-    const taken = new Set((await listTickets()).map((t) => t.number));
+    const taken = new Set(
+        (await listTickets()).filter((t) => t.status !== "revoked").map((t) => t.number),
+    );
     for (let n = 1; n <= GOLDEN_TICKETS_TOTAL; n++) {
         if (!taken.has(n)) return n;
     }
     return null;
+}
+
+/** How many of the hundred are spoken for, and how many are still free. */
+export async function wallCapacity(): Promise<{ held: number; free: number; total: number }> {
+    const held = (await listTickets()).filter((t) => t.status !== "revoked").length;
+    return { held, free: Math.max(0, GOLDEN_TICKETS_TOTAL - held), total: GOLDEN_TICKETS_TOTAL };
 }
 
 /** A slug nobody holds: the name's, or the name's with a number behind it. */

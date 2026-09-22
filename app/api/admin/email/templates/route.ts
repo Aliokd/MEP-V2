@@ -12,6 +12,7 @@ import { betaWelcomeEmail } from "@/lib/email/templates/betaWelcome";
 import { collabInviteEmail } from "@/lib/email/templates/collabInvite";
 import { songCommentedEmail, songLikedEmail } from "@/lib/email/templates/engagement";
 import { trialEndingEmail } from "@/lib/email/templates/trialEnding";
+import { goldenTicketEmail } from "@/lib/email/templates/goldenTicket";
 import { LOCALES } from "@/lib/content";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,20 @@ function renderSample(id: string, locale: EmailLocale, overrides: Awaited<Return
                     song: "Empty Chair",
                     comment: "That second verse gave me chills. The line about the kitchen light is the whole song.",
                     postUrl: `${APP_URL}/platform/connect`,
+                },
+                overrides,
+            );
+        case "golden_ticket":
+            return goldenTicketEmail(
+                locale,
+                {
+                    name: "Alex",
+                    // A shape, not a live code: a preview must never carry
+                    // one, and a real-looking one invites pasting it about.
+                    code: "GOLD-XXXX-XXXX",
+                    redeemUrl: `${APP_URL}/onboarding?from=golden&golden=GOLD-XXXX-XXXX`,
+                    pageUrl: `${APP_URL}/golden/alex`,
+                    invites: 5,
                 },
                 overrides,
             );

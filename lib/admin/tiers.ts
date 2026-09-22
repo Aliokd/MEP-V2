@@ -16,7 +16,7 @@ export const TIER_OPTIONS: { value: StoredTier; label: string; hint: string }[] 
     { value: "trial", label: "Trial", hint: "Full access until the trial end date" },
     { value: "pro", label: "Veinote", hint: "The standard plan, granted without billing" },
     { value: "max", label: "Veinote Pro", hint: "Rooms and Business, granted without billing" },
-    { value: "comp", label: "Lifetime Pro", hint: "The golden program: Pro for good, no card" },
+    { value: "comp", label: "Lifetime Pro", hint: "The golden program: Pro for good, no card. Issues a golden ticket and puts it on the wall." },
 ];
 
 /** Values the console may write. 'free' is the webhook's alone. */

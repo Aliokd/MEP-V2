@@ -25,6 +25,11 @@ type Ctx = { params: Promise<{ slug: string }> };
  *
  * An address in the body wins over the one on record, for the case where
  * the person wrote back from a different one.
+ *
+ * The admin controls what goes out. `subject` replaces the template's, and
+ * `note` is a line written for this person that sits high in the email. The
+ * mode follows the ticket: one already redeemed on an account is announced
+ * as theirs rather than telling them to redeem a code they cannot use.
  */
 export const POST = withAdmin("golden.write", async (request, admin, ctx: Ctx) => {
     const { slug } = await ctx.params;
@@ -40,6 +45,9 @@ export const POST = withAdmin("golden.write", async (request, admin, ctx: Ctx) =
     if (!to) return NextResponse.json({ error: "No address to send to: add one to the ticket first" }, { status: 400 });
 
     const locale = resolveLocale(body.locale ?? ticket.claim?.locale);
+    const subjectOverride = typeof body.subject === "string" ? body.subject.trim().slice(0, 200) : null;
+    const note = typeof body.note === "string" ? body.note.trim().slice(0, 2000) : null;
+    const mode = ticket.status === "redeemed" ? "granted" : "invite";
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://veinote.com";
     const { subject, html, text } = goldenTicketEmail(
         locale,
@@ -49,6 +57,9 @@ export const POST = withAdmin("golden.write", async (request, admin, ctx: Ctx) =
             redeemUrl: `${appUrl}${goldenLandingPath(ticket.code)}`,
             pageUrl: `${appUrl}/golden/${ticket.slug}`,
             invites: ticket.invites,
+            mode,
+            personalNote: note,
+            subject: subjectOverride,
         },
         await getCopyOverrides(),
     );
@@ -76,7 +87,7 @@ export const POST = withAdmin("golden.write", async (request, admin, ctx: Ctx) =
         targetType: "golden_ticket",
         targetId: slug,
         targetLabel: `${ticket.number}. ${ticket.name}`,
-        after: { to },
+        after: { to, mode, customSubject: Boolean(subjectOverride), customNote: Boolean(note) },
         ...auditContext(request),
     });
 

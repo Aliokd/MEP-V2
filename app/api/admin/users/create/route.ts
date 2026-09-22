@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const DAY = 24 * 60 * 60 * 1000;
 import { ASSIGNABLE_TIERS } from "@/lib/admin/tiers";
+import { issueTicketForUser } from "@/lib/goldenGrants";
 import { defaultTrialEnd } from "@/lib/entitlement";
 const VALID_LOCALES = ["en", "no", "sv"];
 const VALID_EMAIL_TYPES = ["welcome", "beta"];
@@ -143,6 +144,29 @@ export const POST = withAdmin("users.create", async (request, admin) => {
         );
     }
 
+    // An account created on the lifetime tier is a member of the golden
+    // hundred, so it gets the ticket that says so (lib/goldenGrants.ts) and
+    // appears on the wall with it marked taken. Best effort: the account is
+    // made either way, and a full wall is reported rather than fatal.
+    let golden: { outcome: string; slug: string | null; number: number | null } | null = null;
+    if (tier === "comp") {
+        try {
+            const issued = await issueTicketForUser({
+                uid: user.uid,
+                name: displayName,
+                email: cleanEmail,
+                // The console can name the place on the wall, which is what
+                // creating an account from a pressed empty ticket does.
+                number: Number.isInteger(Number(body.goldenNumber)) ? Number(body.goldenNumber) : null,
+                issuedBy: admin.uid,
+            });
+            golden = { outcome: issued.outcome, slug: issued.ticket?.slug ?? null, number: issued.ticket?.number ?? null };
+        } catch (err) {
+            console.error("[admin] Golden ticket for a new lifetime account failed:", err);
+            golden = { outcome: "failed", slug: null, number: null };
+        }
+    }
+
     let welcomeSent = false;
     if (sendWelcome) {
         try {
@@ -198,6 +222,7 @@ export const POST = withAdmin("users.create", async (request, admin) => {
             emailVerified: Boolean(emailVerified),
             welcomeSent,
             emailType: welcomeSent ? emailType : null,
+            ...(golden ? { golden } : {}),
         },
         ...auditContext(request),
     });
@@ -208,5 +233,6 @@ export const POST = withAdmin("users.create", async (request, admin) => {
         email: cleanEmail,
         welcomeSent,
         emailType: welcomeSent ? emailType : null,
+        golden,
     });
 });

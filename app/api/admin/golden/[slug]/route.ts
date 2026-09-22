@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { withAdmin } from "@/lib/admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { auditContext, writeAudit } from "@/lib/admin/audit";
@@ -47,6 +48,18 @@ export const PATCH = withAdmin("golden.write", async (request, admin, ctx: Ctx) 
     }
     if (Object.keys(updates).length) actions.push("golden.edit");
 
+    // Whether the ticket hangs on the public wall. A ticket issued with a
+    // lifetime grant goes up by default, marked taken, because that is how a
+    // visitor sees how many of the hundred are gone; the team's own accounts
+    // are the ones to take down.
+    if ("listed" in body) {
+        const listed = Boolean(body.listed);
+        if (listed !== ticket.listed) {
+            updates.listed = listed;
+            actions.push(listed ? "golden.list" : "golden.unlist");
+        }
+    }
+
     if ("status" in body) {
         const status = body.status;
         if (!isStatus(status) || status === "redeemed" || status === "claimed") {
@@ -72,6 +85,17 @@ export const PATCH = withAdmin("golden.write", async (request, admin, ctx: Ctx) 
     updates.updatedAt = new Date().toISOString();
     await adminDb.collection(COLLECTION).doc(slug).update(updates);
 
+    // Revoking a ticket somebody holds also takes it off their account, so the
+    // platform stops showing them a golden card that links to a dead ticket.
+    // Their tier is left alone on purpose: lifetime access is granted and taken
+    // away in Users, and doing it silently from here would hide the decision.
+    if (updates.status === "revoked" && ticket.redeemedBy?.uid) {
+        await adminDb
+            .doc(`users/${ticket.redeemedBy.uid}`)
+            .set({ golden: FieldValue.delete() }, { merge: true })
+            .catch((err) => console.error("[admin/golden] clearing the holder's ticket failed:", err));
+    }
+
     for (const action of actions) {
         await writeAudit({
             actorUid: admin.uid,
@@ -90,16 +114,27 @@ export const PATCH = withAdmin("golden.write", async (request, admin, ctx: Ctx) 
 });
 
 /**
- * Removes a ticket from the wall for good. Refused once redeemed: the
- * account it went to keeps its tier, and the record of which ticket that
- * was should outlive the wall.
+ * Removes a ticket from the wall for good, and gives its number back: the
+ * hundred is a hundred, so a deleted ticket is a free spot for the next
+ * person chosen.
+ *
+ * A ticket somebody holds may be deleted too. It takes the ticket off their
+ * account, so the platform stops showing them a golden card that leads
+ * nowhere, but it does NOT touch their tier: lifetime access is granted and
+ * taken away in Users, and doing it silently from here would hide the
+ * decision. The console says as much before it asks.
  */
 export const DELETE = withAdmin("golden.write", async (request, admin, ctx: Ctx) => {
     const { slug } = await ctx.params;
     const ticket = await getTicket(slug);
     if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
-    if (ticket.status === "redeemed") {
-        return NextResponse.json({ error: "A redeemed ticket cannot be deleted; revoke it instead" }, { status: 409 });
+
+    const holderUid = ticket.redeemedBy?.uid ?? null;
+    if (holderUid) {
+        await adminDb
+            .doc(`users/${holderUid}`)
+            .set({ golden: FieldValue.delete() }, { merge: true })
+            .catch((err) => console.error("[admin/golden] clearing the holder's ticket failed:", err));
     }
 
     await adminDb.collection(COLLECTION).doc(slug).delete();
@@ -112,7 +147,8 @@ export const DELETE = withAdmin("golden.write", async (request, admin, ctx: Ctx)
         targetId: slug,
         targetLabel: `${ticket.number}. ${ticket.name}`,
         before: { number: ticket.number, name: ticket.name, status: ticket.status },
+        after: { spotFreed: ticket.number, holderDetached: holderUid },
         ...auditContext(request),
     });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, spotFreed: ticket.number, holderDetached: Boolean(holderUid) });
 });

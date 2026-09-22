@@ -865,6 +865,7 @@
     "sa_soon": "Kommer snart",
     "sa_open": "Åpne",
     "sa_close": "Lukk",
+    "sa_video_unsupported": "Nettleseren din kan ikke spille av denne videoen.",
     "sa_mark_complete": "Merk som fullført",
     "sa_completed": "Fullført",
     "sa_previous": "Forrige økt",
@@ -1203,7 +1204,10 @@
       "trial_ends": "Prøveperioden din slutter {date}. Velg en plan for å fortsette å skrive etter det.",
       "trial_open": "Du er i en prøveperiode. Velg en plan når du er klar.",
       "expired_desc": "Prøveperioden din er over. Velg en plan for å fortsette å skrive.",
-      "status_expired": "Prøveperioden er over"
+      "status_expired": "Prøveperioden er over",
+      "golden_title": "Gyllen billett",
+      "golden_desc": "Du er en av de hundre. Veinote er ditt for livet.",
+      "golden_link": "Se billetten din"
     },
     "offboarding": {
       "title": "Slett konto",
@@ -1339,6 +1343,33 @@
       "keep": "Alt du har skrevet ligger akkurat der du forlot det. Velg en plan og fortsett der du slapp, eller la det slutte og kom tilbake når du vil.",
       "cta": "Velg en plan",
       "team": "Veinote-teamet"
+    },
+    "golden_ticket": {
+      "subject": "Din gyllne billett til Veinote",
+      "preheader": "Du er valgt ut. Her er billetten som åpner Veinote for livet.",
+      "badge": "Golden program",
+      "greeting": "Hei {{name}}, billetten er din.",
+      "body_1": "Du er én av hundre låtskrivere vi har valgt ut selv, og du tok billetten din. Tusen takk. Denne e-posten er selve billetten, så ta vare på den.",
+      "body_1_granted": "Du er én av hundre låtskrivere vi har valgt ut selv, og denne billetten er din. Ta vare på e-posten: den er selve billetten.",
+      "code_label": "Din gyllne kode",
+      "code_label_granted": "Din gyllne kode, for ordens skyld",
+      "body_2": "Den brukes én gang, når du oppretter kontoen din. Knappen under åpner Veinote med koden allerede på plass. Koden står her i tilfelle du trenger å skrive den inn selv.",
+      "body_2_granted": "Den ligger allerede på kontoen din, så det er ingenting å taste. Åpne Veinote, så er alt ditt.",
+      "cta": "Åpne Veinote med billetten min",
+      "cta_granted": "Åpne Veinote",
+      "app_url": "https://veinote.com/platform/create",
+      "benefits_title": "Dette gir billetten deg",
+      "benefits": [
+        "Livsvarig tilgang til hele Veinote",
+        "{{invites}} invitasjoner til venner eller familie, hver med rabatt for livet",
+        "Gratis inngang til alle Veinote-arrangementer i Norden",
+        "Muligheten til å arrangere og holde arrangementer sammen med oss",
+        "Frynsegoder og gaver underveis"
+      ],
+      "page_line": "Siden din, om du vil lese den igjen:",
+      "keep": "Vi tar personlig kontakt snart. Har du spørsmål før det, er det bare å svare på denne e-posten.",
+      "signoff": "Med takk,",
+      "team": "Grunnleggerne av Veinote"
     }
   },
   "practice": {

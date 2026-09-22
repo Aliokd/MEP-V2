@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Plus, Send, Copy, ExternalLink, RotateCcw, Ban, Trash2, KeyRound, Check } from "lucide-react";
+import { RefreshCw, Plus, Send, Copy, ExternalLink, RotateCcw, Ban, Trash2, KeyRound, Check, Eye, EyeOff, Ticket as TicketIcon } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, StatTile, Badge, Button, Input, Textarea, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import MediaUpload from "../components/MediaUpload";
+import GoldenWall from "./GoldenWall";
+import TicketSheet, { type SheetTarget } from "./TicketSheet";
 
 /**
  * The Golden program console: the hundred tickets, who took which, the code
@@ -25,8 +27,12 @@ interface Ticket {
     code: string;
     status: Status;
     claim: { email: string; message: string | null; locale: string; claimedAt: string } | null;
-    redeemedBy: { uid: string; at: string } | null;
+    redeemedBy: { uid: string; at: string; email: string | null } | null;
     invites: number;
+    /** Whether it hangs on the public wall at /golden. */
+    listed: boolean;
+    /** Chosen here, or issued with a lifetime grant in Users. */
+    origin: "console" | "grant";
     createdAt: string;
     updatedAt: string;
     pagePath: string;
@@ -52,6 +58,9 @@ export default function GoldenAdminPage() {
     const [tickets, setTickets] = useState<Ticket[] | null>(null);
     const [total, setTotal] = useState(100);
     const [counts, setCounts] = useState({ open: 0, claimed: 0, redeemed: 0, revoked: 0 });
+    const [capacity, setCapacity] = useState({ held: 0, free: 0 });
+    const [unticketed, setUnticketed] = useState<{ uid: string; name: string | null; email: string | null }[]>([]);
+    const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -60,13 +69,18 @@ export default function GoldenAdminPage() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
 
-    const [editing, setEditing] = useState<Ticket | null>(null);
-    const [editForm, setEditForm] = useState(EMPTY_FORM);
+    // Which ticket, or which empty place, the sheet is open on.
+    const [sheet, setSheet] = useState<SheetTarget | null>(null);
     const [busySlug, setBusySlug] = useState<string | null>(null);
     const [copied, setCopied] = useState<string | null>(null);
     const [filter, setFilter] = useState<"all" | Status>("all");
+    // The wall is the view that answers "how many of the hundred are gone",
+    // which is the first question asked of this page; the list is the one
+    // that answers "what do I do about this ticket".
+    const [view, setView] = useState<"wall" | "list">("wall");
 
-    const load = useCallback(async () => {
+    /** Returns the fresh list, so a caller can re-read the ticket it is showing. */
+    const load = useCallback(async (): Promise<Ticket[] | null> => {
         setRefreshing(true);
         setError(null);
         try {
@@ -76,9 +90,13 @@ export default function GoldenAdminPage() {
             setTickets(data.tickets);
             setTotal(data.total);
             setCounts(data.counts);
+            setCapacity(data.capacity ?? { held: 0, free: 0 });
+            setUnticketed(data.unticketed ?? []);
+            return data.tickets as Ticket[];
         } catch (err) {
             setError(errorMessage(err));
             setTickets([]);
+            return null;
         } finally {
             setRefreshing(false);
         }
@@ -133,12 +151,7 @@ export default function GoldenAdminPage() {
         }
     };
 
-    const saveEdit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editing) return;
-        await patch(editing.slug, editForm, `${editForm.name} saved.`);
-        setEditing(null);
-    };
+    const openSheet = (t: Ticket) => setSheet({ kind: "ticket", ticket: t });
 
     const resend = async (t: Ticket) => {
         const fallback = t.claim?.email ?? t.email ?? "";
@@ -168,19 +181,49 @@ export default function GoldenAdminPage() {
     };
 
     const remove = async (t: Ticket) => {
-        if (!window.confirm(`Delete ticket ${t.number} (${t.name}) from the wall? This cannot be undone.`)) return;
+        const held = Boolean(t.redeemedBy);
+        const warning = held
+            ? `Delete ticket ${t.number} (${t.name})?
+
+Spot ${t.number} becomes free for someone else, and the ticket comes off ${t.redeemedBy?.email || "their"} account. Their lifetime access is NOT changed; do that in Users.`
+            : `Delete ticket ${t.number} (${t.name}) from the wall?
+
+Spot ${t.number} becomes free for someone else. This cannot be undone.`;
+        if (!window.confirm(warning)) return;
         setBusySlug(t.slug);
         setError(null);
         try {
             const res = await adminFetch(`/api/admin/golden/${t.slug}`, { method: "DELETE" });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Could not delete the ticket");
-            flash(`Ticket ${t.number} deleted.`);
+            flash(`Ticket ${t.number} deleted. Spot ${t.number} is free.`);
             await load();
         } catch (err) {
             setError(errorMessage(err));
         } finally {
             setBusySlug(null);
+        }
+    };
+
+    // Hands every lifetime account with no ticket the next free number.
+    const sync = async () => {
+        if (!window.confirm(`Issue a golden ticket to ${unticketed.length} lifetime ${unticketed.length === 1 ? "account" : "accounts"} that have none? They go on the wall as taken.`)) return;
+        setSyncing(true);
+        setError(null);
+        try {
+            const res = await adminFetch("/api/admin/golden/sync", { method: "POST", body: JSON.stringify({ listed: true }) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not issue the tickets");
+            flash(
+                data.issued.length
+                    ? `${data.issued.length} ticket${data.issued.length === 1 ? "" : "s"} issued.${data.remaining ? ` ${data.remaining} still without one.` : ""}`
+                    : data.message || "Nothing to issue.",
+            );
+            await load();
+        } catch (err) {
+            setError(errorMessage(err));
+        } finally {
+            setSyncing(false);
         }
     };
 
@@ -200,7 +243,7 @@ export default function GoldenAdminPage() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Golden program"
-                description={`The ${total} hand-picked songwriters, their pages at /golden, and the ticket each one holds.`}
+                description={`The ${total} hand-picked songwriters, their pages at /golden, and the ticket each one holds. Granting Lifetime Pro in Users issues one of these automatically.`}
                 action={
                     <div className="flex items-center gap-2">
                         <a href="/golden" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-ink-300 hover:text-ink-100">
@@ -220,7 +263,7 @@ export default function GoldenAdminPage() {
             />
 
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <StatTile label="On the wall" value={`${tickets?.length ?? 0} / ${total}`} />
+                <StatTile label="On the wall" value={`${capacity.held} / ${total}`} hint={`${capacity.free} spot${capacity.free === 1 ? "" : "s"} free`} />
                 <StatTile label="Open" value={counts.open} />
                 <StatTile label="Claimed" value={counts.claimed} tone="gold" />
                 <StatTile label="Redeemed" value={counts.redeemed} tone="green" />
@@ -253,42 +296,83 @@ export default function GoldenAdminPage() {
                 </Panel>
             )}
 
-            {editing && canWrite && (
-                <Panel>
-                    <PanelHeader title={`Edit ticket ${editing.number}`} subtitle={editing.pagePath} />
-                    <form onSubmit={saveEdit} className="p-5 grid md:grid-cols-2 gap-4">
-                        <TicketFields form={editForm} setForm={setEditForm} nameHint={editForm.name || editing.slug} />
-                        <div className="md:col-span-2 flex items-center gap-2 justify-end">
-                            <Button type="button" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-                            <Button type="submit" variant="primary" disabled={busySlug === editing.slug || !editForm.name.trim()}>
-                                {busySlug === editing.slug ? <Spinner className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />} Save
-                            </Button>
-                        </div>
-                    </form>
+            {unticketed.length > 0 && canWrite && (
+                <Panel className="p-4 border-gold-500/30 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="min-w-0">
+                        <p className="text-sm text-ink-100">
+                            {unticketed.length} lifetime {unticketed.length === 1 ? "account holds" : "accounts hold"} no golden ticket.
+                        </p>
+                        <p className="text-xs text-ink-400 truncate">
+                            {unticketed.slice(0, 4).map((u) => u.email || u.name || u.uid).join(", ")}
+                            {unticketed.length > 4 ? ` and ${unticketed.length - 4} more` : ""}
+                        </p>
+                    </div>
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        className="sm:ml-auto shrink-0"
+                        disabled={syncing || capacity.free === 0}
+                        title={capacity.free === 0 ? "The wall is full. Free a spot first." : "Give each of them the next free number"}
+                        onClick={sync}
+                    >
+                        {syncing ? <Spinner className="w-3.5 h-3.5" /> : <TicketIcon className="w-3.5 h-3.5" />}
+                        Issue their tickets
+                    </Button>
                 </Panel>
             )}
 
             <Panel>
                 <PanelHeader
                     title="Tickets"
-                    subtitle="Number, name, status and the code. Claims show the address the ticket went to."
+                    subtitle={
+                        view === "wall"
+                            ? "All hundred places. Press a free one to activate it for somebody."
+                            : "Number, name, status and the code. Claims show the address the ticket went to."
+                    }
                     action={
-                        <div className="flex items-center gap-1">
-                            {(["all", "open", "claimed", "redeemed", "revoked"] as const).map((f) => (
-                                <button
-                                    key={f}
-                                    type="button"
-                                    onClick={() => setFilter(f)}
-                                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${filter === f ? "bg-ink-700 text-ink-100" : "text-ink-400 hover:text-ink-200"}`}
-                                >
-                                    {f === "all" ? "All" : f[0].toUpperCase() + f.slice(1)}
-                                </button>
-                            ))}
+                        <div className="flex items-center gap-3">
+                            {view === "list" && (
+                                <div className="flex items-center gap-1">
+                                    {(["all", "open", "claimed", "redeemed", "revoked"] as const).map((f) => (
+                                        <button
+                                            key={f}
+                                            type="button"
+                                            onClick={() => setFilter(f)}
+                                            className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${filter === f ? "bg-ink-700 text-ink-100" : "text-ink-400 hover:text-ink-200"}`}
+                                        >
+                                            {f === "all" ? "All" : f[0].toUpperCase() + f.slice(1)}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="flex items-center gap-1 rounded-full border border-ink-600 p-0.5">
+                                {(["wall", "list"] as const).map((v) => (
+                                    <button
+                                        key={v}
+                                        type="button"
+                                        onClick={() => setView(v)}
+                                        className={`px-3 py-1 rounded-full text-[11px] font-medium transition-colors ${view === v ? "bg-ink-700 text-ink-100" : "text-ink-400 hover:text-ink-200"}`}
+                                    >
+                                        {v === "wall" ? "Wall" : "List"}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     }
                 />
                 {tickets === null ? (
                     <div className="p-5"><SkeletonRows rows={6} /></div>
+                ) : view === "wall" ? (
+                    <GoldenWall
+                        tickets={tickets}
+                        total={total}
+                        canWrite={canWrite}
+                        onPick={(slug) => {
+                            const picked = tickets.find((t) => t.slug === slug);
+                            if (picked) openSheet(picked);
+                        }}
+                        onPickFree={(n) => setSheet({ kind: "free", number: n })}
+                    />
                 ) : visible.length === 0 ? (
                     <div className="p-5">
                         <EmptyState
@@ -314,6 +398,8 @@ export default function GoldenAdminPage() {
                                             <div className="flex items-center gap-2">
                                                 <a href={t.pagePath} target="_blank" rel="noreferrer" className="text-sm font-medium text-ink-100 hover:underline truncate">{t.name}</a>
                                                 <Badge tone={STATUS_TONE[t.status]}>{t.status}</Badge>
+                                                {t.origin === "grant" && <Badge tone="blue">granted</Badge>}
+                                                {!t.listed && <Badge tone="neutral">off the wall</Badge>}
                                             </div>
                                             <p className="text-xs text-ink-400 truncate">{t.tagline || t.pagePath}</p>
                                         </div>
@@ -330,7 +416,11 @@ export default function GoldenAdminPage() {
                                         ) : (
                                             <p className="text-ink-500">No address yet</p>
                                         )}
-                                        {t.redeemedBy && <p className="text-green-400">Redeemed {timeAgo(t.redeemedBy.at)} · uid {t.redeemedBy.uid.slice(0, 8)}…</p>}
+                                        {t.redeemedBy && (
+                                            <p className="text-green-400 truncate">
+                                                Held by {t.redeemedBy.email || `uid ${t.redeemedBy.uid.slice(0, 8)}…`} since {timeAgo(t.redeemedBy.at)}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="flex items-center gap-2 lg:w-[16%]">
@@ -345,9 +435,20 @@ export default function GoldenAdminPage() {
 
                                     {canWrite && (
                                         <div className="flex items-center gap-1 flex-wrap lg:justify-end lg:flex-1">
-                                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => { setEditing(t); setEditForm({ name: t.name, tagline: t.tagline ?? "", note: t.note ?? "", photoUrl: t.photoUrl ?? "", email: t.email ?? "" }); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                                                Edit
+                                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => openSheet(t)}>
+                                                Open
                                             </Button>
+                                            {t.status !== "revoked" && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    disabled={busy}
+                                                    title={t.listed ? "On the wall at /golden. Take it down." : "Not on the wall. Put it up."}
+                                                    onClick={() => patch(t.slug, { listed: !t.listed }, t.listed ? `Ticket ${t.number} is off the wall.` : `Ticket ${t.number} is on the wall.`)}
+                                                >
+                                                    {t.listed ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                                </Button>
+                                            )}
                                             {t.status !== "revoked" && t.status !== "redeemed" && (
                                                 <Button size="sm" variant="ghost" disabled={busy} onClick={() => resend(t)} title={t.status === "open" ? "Send the ticket to an address" : "Resend the ticket"}>
                                                     <Send className="w-3.5 h-3.5" /> {t.status === "open" ? "Send" : "Resend"}
@@ -372,11 +473,9 @@ export default function GoldenAdminPage() {
                                                     <RotateCcw className="w-3.5 h-3.5" /> Reopen
                                                 </Button>
                                             )}
-                                            {t.status !== "redeemed" && (
-                                                <Button size="sm" variant="ghost" disabled={busy} onClick={() => remove(t)} title="Delete">
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </Button>
-                                            )}
+                                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => remove(t)} title="Delete, and free the spot">
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
                                             {busy && <Spinner className="w-3.5 h-3.5" />}
                                         </div>
                                     )}
@@ -386,6 +485,29 @@ export default function GoldenAdminPage() {
                     </ul>
                 )}
             </Panel>
+
+            {/* The ticket, opened. Everything that can be done to a place on
+                the wall and to whoever holds it lives in here. */}
+            {sheet && (
+                <TicketSheet
+                    target={sheet}
+                    canWrite={canWrite}
+                    onClose={() => setSheet(null)}
+                    onChanged={async (note) => {
+                        flash(note);
+                        const fresh = await load();
+                        // Keep the sheet on the same ticket, showing what
+                        // just changed, rather than closing under the press.
+                        setSheet((current) => {
+                            if (!current || !fresh) return current;
+                            const slug = current.kind === "ticket" ? current.ticket.slug : null;
+                            const number = current.kind === "ticket" ? current.ticket.number : current.number;
+                            const still = fresh.find((t) => (slug ? t.slug === slug : t.number === number && t.status !== "revoked"));
+                            return still ? { kind: "ticket", ticket: still } : current;
+                        });
+                    }}
+                />
+            )}
         </div>
     );
 }

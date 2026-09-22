@@ -38,6 +38,10 @@ const KNOWN_SOURCES = new Set([
     // yt-vsl is the YouTube VSL campaign; x-ads is paid X; x-organic is
     // Peter's own posts and replies there.
     "yt-vsl", "x-ads", "x-organic",
+    // Somebody asking for one of the golden tickets nobody holds yet
+    // (/golden/ticket/{number}). They are not joining a queue so much as
+    // putting a hand up, and the founders answer these by hand.
+    "golden",
 ]);
 
 /**
@@ -55,6 +59,12 @@ const KNOWN_QUESTIONS = new Set([
     "struggle",
     "dream_outcome",
     "emotional_inspiration",
+    // Not quiz answers: what somebody asking for a golden ticket
+    // (/golden/ticket/{number}) told us. The number that caught their eye,
+    // and a line about what they write. They ride here so the founders read
+    // them in the same notification as the address.
+    "golden_ticket",
+    "about",
 ]);
 const MAX_ANSWER_LENGTH = 120;
 const MAX_ANSWER_ITEMS = 12;

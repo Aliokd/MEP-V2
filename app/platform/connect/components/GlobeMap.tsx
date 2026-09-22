@@ -78,6 +78,23 @@ export interface GlobeMapProps {
      * A pin that turns past the horizon takes its card with it.
      */
     renderPinCard?: (spec: PinSpec) => React.ReactNode;
+    /**
+     * Which of the two palettes to draw in. Defaults to following `interactive`,
+     * which is what Connect wants: the opened map is the page, so it gets the
+     * blue; the minimised panel sits on beige and is drawn in beige.
+     *
+     * They come apart on the Golden page, which shows a globe that can be
+     * turned but sits in a beige page as one section among several, where blue
+     * water would cut a hole in it.
+     */
+    palette?: 'interactive' | 'still';
+    /**
+     * How wide a pin's card is laid out as. The map places cards and resolves
+     * overlaps against this number rather than measuring, so a card narrower
+     * than it claims still reserves the full width and its neighbours are held
+     * back: a row of name pills at the default 288 leaves one name on the globe.
+     */
+    cardWidth?: number;
     className?: string;
 }
 
@@ -88,8 +105,10 @@ export interface GlobeMapProps {
  * and sits in the layout instead of cutting a blue hole in it.
  */
 const PALETTE = {
-    interactive: { space: '#1E3C74', water: '#D4E4F4', land: '#EEF1F6' },
-    still: { space: '#E1E0D9', water: '#E1E0D9', land: '#F6F6F0' },
+    interactive: { space: '#1E3C74', water: '#D4E4F4', land: '#EEF1F6', rim: 'rgba(15,35,75,0.28)' },
+    // A warm rim, not the navy one: on beige a blue shadow is the thing that
+    // keeps the globe looking like it was cut from another page.
+    still: { space: '#E1E0D9', water: '#E1E0D9', land: '#F6F6F0', rim: 'rgba(122,112,88,0.26)' },
 } as const;
 const BORDER = 'rgba(88,104,130,0.42)';
 const COUNTRY_TEXT = '#6B7684';
@@ -276,7 +295,7 @@ const CARD_GAP = 12;
 /** Room to keep between two cards, and between a card and the box's edge. */
 const CARD_MARGIN = 8;
 
-export default function GlobeMap({ pins, centre, zoom, interactive, flyTo, cities, renderPinCard, className = '' }: GlobeMapProps) {
+export default function GlobeMap({ pins, centre, zoom, interactive, flyTo, cities, renderPinCard, palette, cardWidth = CARD_WIDTH, className = '' }: GlobeMapProps) {
     const hostRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -353,7 +372,7 @@ export default function GlobeMap({ pins, centre, zoom, interactive, flyTo, citie
             }
         }
 
-        const pal = interactive ? PALETTE.interactive : PALETTE.still;
+        const pal = PALETTE[palette ?? (interactive ? 'interactive' : 'still')];
         ctx.fillStyle = pal.space;
         ctx.fillRect(0, 0, w, h);
 
@@ -386,7 +405,7 @@ export default function GlobeMap({ pins, centre, zoom, interactive, flyTo, citie
             const shade = ctx.createRadialGradient(cx - R * 0.4, cy - R * 0.4, R * 0.15, cx, cy, R);
             shade.addColorStop(0, 'rgba(255,255,255,0.12)');
             shade.addColorStop(0.55, 'rgba(255,255,255,0)');
-            shade.addColorStop(1, 'rgba(15,35,75,0.28)');
+            shade.addColorStop(1, pal.rim);
             ctx.beginPath();
             path({ type: 'Sphere' });
             ctx.fillStyle = shade;
@@ -892,10 +911,10 @@ export default function GlobeMap({ pins, centre, zoom, interactive, flyTo, citie
                 for (const hit of ordered) {
                     const height = cardHeights[hit.spec.key] ?? 240;
                     const pinTop = hit.y - 8;
-                    const left = Math.max(CARD_MARGIN, Math.min(size.w - CARD_WIDTH - CARD_MARGIN, hit.x - CARD_WIDTH / 2));
+                    const left = Math.max(CARD_MARGIN, Math.min(size.w - cardWidth - CARD_MARGIN, hit.x - cardWidth / 2));
                     const above = pinTop >= height + CARD_GAP + CARD_MARGIN;
                     const top = above ? pinTop - CARD_GAP - height : hit.y + 8 + CARD_GAP;
-                    const box: Box = { x0: left - CARD_MARGIN, y0: top - CARD_MARGIN, x1: left + CARD_WIDTH + CARD_MARGIN, y1: top + height + CARD_MARGIN };
+                    const box: Box = { x0: left - CARD_MARGIN, y0: top - CARD_MARGIN, x1: left + cardWidth + CARD_MARGIN, y1: top + height + CARD_MARGIN };
                     if (taken.some((t) => overlaps(t, box))) continue;
                     taken.push(box);
                     cards.push(
@@ -905,7 +924,7 @@ export default function GlobeMap({ pins, centre, zoom, interactive, flyTo, citie
                             data-map-card=""
                             className="absolute z-30 map-card-in"
                             style={{
-                                width: CARD_WIDTH,
+                                width: cardWidth,
                                 left,
                                 top,
                                 transformOrigin: above ? 'bottom center' : 'top center',

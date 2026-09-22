@@ -865,6 +865,7 @@
     "sa_soon": "Coming soon",
     "sa_open": "Open",
     "sa_close": "Close",
+    "sa_video_unsupported": "Your browser can't play this video.",
     "sa_mark_complete": "Mark complete",
     "sa_completed": "Completed",
     "sa_previous": "Previous session",
@@ -1203,7 +1204,10 @@
       "trial_ends": "Your trial ends {date}. Choose a plan to keep writing after that.",
       "trial_open": "You are on a trial. Choose a plan whenever you are ready.",
       "expired_desc": "Your trial has ended. Choose a plan to keep writing.",
-      "status_expired": "Trial ended"
+      "status_expired": "Trial ended",
+      "golden_title": "Golden ticket",
+      "golden_desc": "You are one of the hundred. Veinote is yours for life.",
+      "golden_link": "See your ticket"
     },
     "offboarding": {
       "title": "Delete account",
@@ -1351,7 +1355,12 @@
       "page_line": "Your page, if you want to read it again:",
       "keep": "We will write to you personally soon. If you have questions before then, reply to this email.",
       "signoff": "With gratitude,",
-      "team": "The Veinote founders"
+      "team": "The Veinote founders",
+      "code_label_granted": "Your golden code, for the record",
+      "body_2_granted": "It is already on your account, so there is nothing to type. Open Veinote and everything is yours.",
+      "cta_granted": "Open Veinote",
+      "app_url": "https://veinote.com/platform/create",
+      "body_1_granted": "You were one of a hundred songwriters we chose by hand, and this ticket is yours. Keep this email: it is the ticket itself."
     },
     "trial_ending": {
       "subject": "Your Veinote trial ends tomorrow",

@@ -25,6 +25,8 @@ export interface DirectoryUser {
     subscriptionStatus: string | null;
     trialEndsAt: string | null;
     sanctioned: boolean;
+    /** One of the hundred: the ticket's slug and its number on the wall. */
+    golden: { slug: string; number: number | null } | null;
 }
 
 export default function UsersPage() {
@@ -129,6 +131,7 @@ function UserDirectory() {
                     <option value="recent">Recent activity</option>
                     <option value="trial-expiring">Trial ending in 7 days</option>
                     <option value="inactive">Inactive 30+ days</option>
+                    <option value="golden">Golden ticket holders</option>
                 </Select>
                 {users && (
                     <span className="text-xs text-ink-500 ml-auto">
@@ -190,6 +193,11 @@ function UserDirectory() {
                                             <div className="flex flex-col gap-0.5 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-ink-100 truncate">{u.name || "Unnamed"}</span>
+                                                    {u.golden && (
+                                                        <Badge tone="gold">
+                                                            {u.golden.number ? `Golden ${String(u.golden.number).padStart(3, "0")}` : "Golden"}
+                                                        </Badge>
+                                                    )}
                                                     {u.sanctioned && <Badge tone="red">sanctioned</Badge>}
                                                 </div>
                                                 <span className="text-xs text-ink-500 truncate">{u.email}</span>

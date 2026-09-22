@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAdmin } from "@/lib/admin/auth";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { listTickets } from "@/lib/goldenTickets";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,31 @@ function shape(doc: FirebaseFirestore.DocumentSnapshot) {
         subscriptionStatus: d.billing?.subscriptionStatus || null,
         trialEndsAt: d.billing?.trialEndsAt || null,
         sanctioned: Boolean(d.sanction?.active),
+        /** The golden ticket this account holds, filled in by withGoldenTickets. */
+        golden: typeof d.golden?.ticket === "string" ? { slug: d.golden.ticket as string, number: null as number | null } : null,
     };
+}
+
+/**
+ * Puts each row's golden ticket number beside it.
+ *
+ * The user document only stores the slug, and a number per row would be a
+ * read per row. The wall is a hundred documents, so one query answers the
+ * whole page, and a lifetime holder is recognisable in the list without
+ * opening the drawer.
+ */
+async function withGoldenTickets(users: ShapedUser[]): Promise<ShapedUser[]> {
+    if (!users.some((u) => u.golden)) return users;
+    try {
+        const tickets = await listTickets();
+        const bySlug = new Map(tickets.map((t) => [t.slug, t.number]));
+        users.forEach((u) => {
+            if (u.golden) u.golden.number = bySlug.get(u.golden.slug) ?? null;
+        });
+    } catch (err) {
+        console.error("[admin/users] reading golden ticket numbers failed:", err);
+    }
+    return users;
 }
 
 type ShapedUser = ReturnType<typeof shape> & { lastSignInAt?: number | null; activeAt?: number | null };
@@ -95,7 +120,7 @@ export const GET = withAdmin("users.read", async (request) => {
     if (q) {
         const byId = await adminDb.collection("users").doc(q).get();
         if (byId.exists) {
-            return NextResponse.json({ users: await withEffectiveActivity([shape(byId)]), exact: true });
+            return NextResponse.json({ users: await withGoldenTickets(await withEffectiveActivity([shape(byId)])), exact: true });
         }
 
         if (q.includes("@")) {
@@ -110,7 +135,7 @@ export const GET = withAdmin("users.read", async (request) => {
             if (snap.empty && q !== lowered) {
                 snap = await adminDb.collection("users").where("email", "==", q).limit(limit).get();
             }
-            return NextResponse.json({ users: await withEffectiveActivity(snap.docs.map(shape)), exact: true });
+            return NextResponse.json({ users: await withGoldenTickets(await withEffectiveActivity(snap.docs.map(shape))), exact: true });
         }
 
         // U+F8FF sorts above any ordinary character, so [q, q + U+F8FF] is a
@@ -124,7 +149,7 @@ export const GET = withAdmin("users.read", async (request) => {
 
         const merged = new Map<string, ReturnType<typeof shape>>();
         [...byName.docs, ...byEmail.docs].forEach((doc) => merged.set(doc.id, shape(doc)));
-        return NextResponse.json({ users: await withEffectiveActivity([...merged.values()]), exact: false });
+        return NextResponse.json({ users: await withGoldenTickets(await withEffectiveActivity([...merged.values()])), exact: false });
     }
 
     let query: FirebaseFirestore.Query = adminDb.collection("users");
@@ -149,6 +174,12 @@ export const GET = withAdmin("users.read", async (request) => {
         query = query
             .where("lastActiveAt", "<=", new Date(Date.now() - 30 * DAY).toISOString())
             .orderBy("lastActiveAt", "desc");
+    } else if (filter === "golden") {
+        // Everyone holding one of the hundred. Firestore drops documents that
+        // lack the ordering field, which is exactly the filter wanted here:
+        // only accounts with a ticket carry `golden.ticket`.
+        sortField = "golden.ticket";
+        query = query.orderBy("golden.ticket", "asc");
     } else if (filter === "recent") {
         // Ordered in memory, not by Firestore. `lastActiveAt` only started being
         // maintained recently, so ordering on it would rank everyone by the day
@@ -174,7 +205,7 @@ export const GET = withAdmin("users.read", async (request) => {
         adminDb.collection("users").orderBy(sortField).count().get().then((s) => s.data().count).catch(() => 0),
     ]);
 
-    let users = await withEffectiveActivity(snap.docs.map(shape));
+    let users = await withGoldenTickets(await withEffectiveActivity(snap.docs.map(shape)));
 
     if (filter === "recent") {
         users = users
