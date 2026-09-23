@@ -1,11 +1,13 @@
 "use client";
 
 import {
+    CheckoutEventNames,
     initializePaddle,
     type CheckoutEventsData,
     type Paddle,
     type PaddleEventData,
 } from '@paddle/paddle-js';
+import { reportPurchaseConversion } from '@/lib/googleAds';
 import {
     BILLING_PERIODS,
     FALLBACK_PRICING,
@@ -38,6 +40,17 @@ type PaddleListener = (event: PaddleEventData) => void;
 const listeners = new Set<PaddleListener>();
 
 function dispatch(event: PaddleEventData) {
+    // Ad conversion, here rather than in any one paywall: this is the single
+    // point every checkout's events pass through. A no-op unless the visitor
+    // allowed ad measurement (lib/googleAds.ts checks).
+    if (event.name === CheckoutEventNames.CHECKOUT_COMPLETED && event.data?.transaction_id) {
+        try {
+            reportPurchaseConversion(event.data.transaction_id);
+        } catch (err) {
+            console.error('Ad conversion report failed:', err);
+        }
+    }
+
     for (const listener of listeners) {
         try {
             listener(event);

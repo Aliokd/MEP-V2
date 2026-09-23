@@ -109,3 +109,22 @@ export function trackAdsConversion(label: string, params: Record<string, unknown
     if (typeof window === 'undefined' || !granted) return;
     gtag()?.('event', 'conversion', { send_to: `${GOOGLE_ADS_ID}/${label}`, ...params });
 }
+
+/** The "Purchase" conversion action in Google Ads. */
+const PURCHASE_LABEL = 'yhOdCLjE_v8cEIKI4sZE';
+
+/**
+ * A Paddle checkout completed. Called from lib/paddle/checkout.ts, which sees
+ * every checkout on the site, so no individual paywall has to remember this.
+ *
+ * transaction_id is what lets Google count one purchase once: Paddle can
+ * report a completion more than once (a retry, a second tab), and Google
+ * dedupes on this id. Deliberately no `value`: with card-required trials the
+ * charge on the day is usually zero, and sending value: 0 would override the
+ * value set on the conversion action and tell bidding a trial is worth
+ * nothing. The action's own value settings in Google Ads are the source of
+ * truth until real revenue per conversion is worth wiring.
+ */
+export function reportPurchaseConversion(transactionId: string): void {
+    trackAdsConversion(PURCHASE_LABEL, { transaction_id: transactionId });
+}
