@@ -24,14 +24,14 @@ export const GOLDEN = {
      * invites the reader to put their hand up for it.
      */
     free: {
+        /** The headline over a free ticket's first screen. */
+        heading: 'Golden ticket',
         eyebrow: 'Still available',
-        title: 'This golden ticket has no name on it yet.',
-        body: 'A hundred songwriters get one, chosen by hand, and this one is still open. Here is what it holds, and what we are building with the people who take them.',
+        body: 'We believe songwriters build the best tools for songwriters, and that is why we are building Veinote. A hundred of them get a golden ticket, chosen by hand. We would love you to be part of this mission.',
         askTitle: 'Want this ticket?',
         askBody: 'Leave your email and a line about what you write. We read every one, and we reach out to the songwriters we want beside us.',
         askAbout: 'One line about you (optional)',
         askAboutPlaceholder: 'What you write, or where we can hear it.',
-        askCta: 'Put my name on it',
         askSending: 'Sending',
         askDoneTitle: 'We have you',
         askDoneBody: 'Thank you. We read these ourselves, and we will write to {email} if this ticket is yours.',
@@ -41,6 +41,34 @@ export const GOLDEN = {
         takenBody: 'Every ticket goes to one songwriter. Look at the wall to see which are still open.',
     },
 
+    /**
+     * The card at the end of a ticket page. Closed, it shows what the ticket
+     * is worth; pressed, the price is struck through to nothing and the
+     * ticket unfolds into what it holds and the two fields that take it.
+     *
+     * The figure is a year of Veinote Pro at Paddle's current price, read on
+     * the server (lib/paddle/proYearlyPrice.ts), not written here.
+     */
+    /** The two buttons under a ticket page's opening lines. */
+    hero: {
+        learnMore: 'Learn more',
+    },
+
+    activate: {
+        button: 'Activate',
+        valueLabel: 'Total value of the package',
+        period: '/year',
+        /** After the press, on a ticket with a name on it. */
+        activeTitle: 'Active',
+        /** After the press, on a free ticket: nobody is handed one from a page anyone can open. */
+        requestTitle: 'Ask for ticket {number}',
+        nameLabel: 'Your name',
+        emailLabel: 'Your email',
+        save: 'Save',
+        saving: 'Saving',
+        nameMissing: 'Tell us your name.',
+    },
+
     /** {name} is the first name on the ticket. */
     heroTitle: 'Hey {name}, you have been chosen to be part of Veinote.',
     heroBody: 'We are building the home of human songwriting, and we are opening it first to a hundred people whose work we admire. You are one of them.',
@@ -48,14 +76,14 @@ export const GOLDEN = {
     benefitsTitle: 'What you get, exclusively',
     benefits: [
         'Lifetime access to every part of Veinote',
-        `${GOLDEN_INVITES_PER_TICKET} exclusive invites for friends or family, each with a discount for life`,
-        'Free access to every Veinote event in the Nordics',
+        `${GOLDEN_INVITES_PER_TICKET} exclusive invites for friends or family, each with a 30% discount forever`,
+        'Discounts on Veinote local events',
         'The ability to organize and host events with us',
         'Perks and goodies along the way',
     ],
     perks: [
-        { id: 'tee', title: 'The golden tee', body: 'One per ticket, numbered.' },
-        { id: 'box', title: 'The welcome box', body: 'Sent to your door when we meet.' },
+        { id: 'tee', title: 'Your own Veinote T-shirt' },
+        { id: 'vouchers', title: `${GOLDEN_INVITES_PER_TICKET} Veinote Vouchers` },
     ],
 
     /**
@@ -152,7 +180,11 @@ export const GOLDEN = {
         language: 'Hunting for the right phrase, stress and rhyme sharpens the language network itself.',
     } as Record<string, string>,
 
-    togetherTitle: 'We bring humans together, online and offline',
+    togetherTitle: 'We bring human writers together',
+
+    videoTitle: 'See Veinote in action',
+    /** On the still, before the player is loaded. */
+    videoPlay: 'Play the video',
 
     claim: {
         title: 'Your ticket is waiting',
@@ -177,8 +209,6 @@ export const GOLDEN = {
         },
     },
 
-    footnotePhotos: 'Photos have been picked from the public internet.',
-    footnoteTerms: 'Read terms and conditions',
 } as const;
 
 export function firstName(name: string): string {

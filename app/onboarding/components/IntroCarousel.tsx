@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useAnimationFrame, useMotionValue, useReducedM
 import { ArrowLeft, ArrowRight, Check, Heart, Loader2, MessageSquare, MoreHorizontal, Pause, Plus, Repeat } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
+import { MARKER_BAND, MARKER_DELAY_MS, MARKER_SWEEP_MS, SCIENCE_SOURCE } from '@/lib/scienceClaim';
 
 // The five screens that run before the quiz. Titles are looked up under
 // `onboarding.intro.slides.<id>` in the locale files. `image` stays null until
@@ -29,31 +30,8 @@ type IntroSlide = {
 // The institution marks are their own SVG files rather than inline markup, so
 // they stay byte-identical to what was supplied and can be swapped without
 // touching this component.
-// Where the claim comes from — Harvard Health Publishing, the same institution
-// as the first mark below it.
-const SCIENCE_SOURCE = 'https://www.health.harvard.edu/blog/why-is-music-good-for-the-brain-2020100721062';
-
-// The highlighter that draws itself across the claim.
-//
-// A background gradient whose width is animated, not an SVG stroke: the phrase
-// is live text that rewraps with the language and the viewport, and a drawn
-// path would have to be re-measured every time it did. A background follows the
-// text for free, and clips to each line if the phrase ever wraps.
-//
-// The stop positions put the band across the lower two-thirds of the line
-// rather than behind the whole of it, which is where a real marker lands — over
-// the x-height, with the ascenders standing clear above it.
-// Held back from the solid ink so the words stay the thing being read and the
-// mark stays behind them — a full-strength band competes with its own text.
-const MARKER_COLOR = 'rgba(220, 242, 60, 0.55)';
-// Taller than a strict x-height band: it now starts above the lowercase and
-// runs past the baseline, which is how a real marker overshoots.
-const MARKER_BAND = `linear-gradient(transparent 22%, ${MARKER_COLOR} 22%, ${MARKER_COLOR} 100%)`;
-// Long enough to read as a hand drawing it rather than a box appearing.
-const MARKER_SWEEP_MS = 900;
-// A beat after the step arrives, so the eye has landed on the sentence before
-// the emphasis moves under it.
-const MARKER_DELAY_MS = 650;
+// The claim's source and its marker are shared with the Golden program's
+// science section: see lib/scienceClaim.ts.
 
 const SCIENCE_LOGOS = [
     { src: '/onboarding-cards/logo-harvard-medical.svg', alt: 'Harvard Medical School', className: 'h-[39px] md:h-[47px]' },

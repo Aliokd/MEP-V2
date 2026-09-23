@@ -1,15 +1,16 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Logo from '@/components/Logo';
 import SiteFooterStrip from '@/components/SiteFooterStrip';
 import { listTickets } from '@/lib/goldenTickets';
+import { proYearlyPrice } from '@/lib/paddle/proYearlyPrice';
 import { GOLDEN_TICKETS_TOTAL } from '@/lib/uiFlags';
-import TicketArt from '../../components/TicketArt';
-import GoldenBadge from '../../components/GoldenBadge';
 import ProgramSections from '../../components/ProgramSections';
 import AskForTicket from '../../components/AskForTicket';
+import GoldenHeroActions from '../../components/GoldenHeroActions';
+import { LEARN_MORE_ANCHOR } from '../../activateEvent';
 import { GOLDEN } from '../../content';
 
 /**
@@ -53,6 +54,9 @@ export default async function FreeTicketPage({ params }: { params: Params }) {
     const held = (await listTickets()).find((t) => t.number === n && t.status !== 'revoked');
     if (held) redirect(`/golden/${held.slug}`);
 
+    // What the card strikes through: a year of Veinote Pro, as Paddle has it.
+    const price = await proYearlyPrice();
+
     return (
         <div className="overflow-x-clip bg-[#E6E3DB] min-h-screen font-sans text-stone-900">
             <header className="sticky top-0 z-40 bg-[#E6E3DB]/85 backdrop-blur-lg border-b border-stone-300/20">
@@ -66,64 +70,43 @@ export default async function FreeTicketPage({ params }: { params: Params }) {
                             <span className="truncate">{GOLDEN.backLabel}</span>
                         </Link>
                     </div>
-                    <a
-                        href="#ticket"
-                        className="btn-press shrink-0 px-5 py-2.5 md:px-6 md:py-3 text-sm md:text-base font-semibold inline-flex items-center gap-2 select-none"
-                    >
-                        <span>{GOLDEN.free.askCta}</span>
-                        <ArrowRight className="w-4 h-4 stroke-[2.5px]" />
-                    </a>
                 </div>
             </header>
 
-            {/* Hero: the ticket itself, with nobody's name on it.
+            {/* Hero: what this ticket is, and the two ways on.
 
-                It holds the screen on its own. `min-h` against the viewport
-                less the header means the first thing a visitor sees is the
-                ticket and what it is, and the sections below are something
-                they choose to scroll to rather than something crowding the
-                headline. Capped, so a tall desktop window does not leave the
-                text stranded in the middle of an empty field. */}
-            <section className="flex min-h-[calc(100svh-96px)] max-h-[900px] items-center px-6 pb-16 pt-10 md:px-[10%] md:pb-24 md:pt-14">
-                <div className="grid w-full items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-16">
-                    <div className="max-w-3xl">
-                        <GoldenBadge size={72} tone="gold" />
-                        <p className="mt-8 text-xs text-stone-500 tabular-nums">
-                            {GOLDEN.free.eyebrow} · Ticket {n} of {GOLDEN_TICKETS_TOTAL}
-                        </p>
-                        <h1 className="mt-3 text-4xl md:text-6xl leading-[1.08] tracking-tight font-light">
-                            {GOLDEN.free.title}
-                        </h1>
-                        <p className="mt-6 text-base md:text-lg text-stone-600 leading-relaxed max-w-2xl">{GOLDEN.free.body}</p>
-                    </div>
-
-                    {/* The ticket being offered, drawn rather than described.
-                        `issued={false}` is the point of this page: the number is
-                        quieter and the paper paler, because nobody's name is on
-                        it yet.
-
-                        `relative` and the ticket's own 400x240 ratio are both
-                        required, not styling: TicketArt draws itself `absolute
-                        inset-0` with `preserveAspectRatio="none"`, so it fills
-                        whatever box it is given and stretches to any shape that
-                        box happens to be. Without a positioned parent it escapes
-                        to the nearest one and spans the page. */}
-                    <div className="relative mx-auto aspect-[400/240] w-full max-w-[460px] lg:mx-0 lg:max-w-[520px]">
-                        <TicketArt number={n} issued={false} id={`hero-${n}`} />
+                Only the words and the choice. The ticket drawing, the seal and
+                the headline went: they said "golden ticket" three times before
+                the paragraph said what one is. It still holds the first screen
+                on its own, centred, so the sections below are something the
+                visitor chooses to scroll to. */}
+            <section className="flex min-h-[calc(100svh-96px)] max-h-[900px] items-center justify-center px-6 pb-16 pt-10 md:px-[10%] md:pb-20 md:pt-14">
+                <div className="mx-auto max-w-2xl text-center">
+                    <h1 className="text-5xl leading-[1.05] tracking-tight font-light md:text-7xl">
+                        {GOLDEN.free.heading}
+                    </h1>
+                    <p className="mt-5 text-xs text-stone-500 tabular-nums md:mt-6">
+                        {GOLDEN.free.eyebrow} · Ticket {n} of {GOLDEN_TICKETS_TOTAL}
+                    </p>
+                    <p className="mt-5 text-xl leading-relaxed text-stone-700 md:text-2xl md:leading-relaxed">
+                        {GOLDEN.free.body}
+                    </p>
+                    <div className="mt-10 md:mt-12">
+                        <GoldenHeroActions />
                     </div>
                 </div>
             </section>
 
-            <ProgramSections />
+            {/* Where Learn more lands. The margin keeps the section's first line
+                clear of the sticky header. */}
+            <div id={LEARN_MORE_ANCHOR} className="scroll-mt-24">
+                <ProgramSections />
+            </div>
 
             {/* The ask */}
             <section className="px-6 md:px-[10%] pb-10">
                 <div className="max-w-2xl mx-auto">
-                    <AskForTicket number={n} />
-                    <p className="mt-6 text-center text-xs text-stone-500">
-                        {GOLDEN.footnotePhotos}{' '}
-                        <Link href="/terms" className="underline underline-offset-2 hover:text-stone-800">{GOLDEN.footnoteTerms}</Link>
-                    </p>
+                    <AskForTicket number={n} price={price} />
                 </div>
             </section>
 

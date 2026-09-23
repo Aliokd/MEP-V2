@@ -49,6 +49,10 @@ export async function POST(request: Request) {
     const slug = typeof body.slug === "string" ? body.slug : "";
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const message = typeof body.message === "string" ? body.message.trim().slice(0, MAX_MESSAGE) : "";
+    // The name they typed on the activation card. Kept beside the claim so
+    // the console can greet them as they wrote it; the ticket's own name is
+    // the founders' spelling and is not touched.
+    const typedName = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
     const locale = resolveLocale(body.locale);
 
     if (!SLUG_PATTERN.test(slug)) return NextResponse.json({ error: "not-found" }, { status: 404 });
@@ -90,7 +94,7 @@ export async function POST(request: Request) {
             if (status !== "open") return "taken" as const;
             tx.update(ref, {
                 status: "claimed",
-                claim: { email: recipient, message: message || null, locale, claimedAt, typedEmail: email },
+                claim: { email: recipient, message: message || null, name: typedName || null, locale, claimedAt, typedEmail: email },
                 updatedAt: claimedAt,
             });
             return "claimed" as const;

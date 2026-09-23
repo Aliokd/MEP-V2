@@ -33,7 +33,7 @@ export default async function GoldenWallPage() {
     return (
         <div className="overflow-x-clip bg-[#E6E3DB] min-h-screen font-sans text-stone-900">
             <section className="pt-16 md:pt-24 pb-12 px-6 md:px-[10%] flex flex-col items-center text-center">
-                <GoldenBadge size={96} tone="paper" />
+                <GoldenBadge size={96} />
                 <Link href="/" className="mt-6 hover:opacity-80 transition-opacity [&_svg]:w-[150px] md:[&_svg]:w-[190px]">
                     <Logo size="lg" />
                 </Link>

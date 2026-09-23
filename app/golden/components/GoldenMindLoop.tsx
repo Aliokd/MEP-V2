@@ -5,6 +5,7 @@ import { useReducedMotion } from 'framer-motion';
 import { useLanguage } from '@/context/LanguageContext';
 import GoldenMindStage from '@/app/platform/mind-power/components/GoldenMindStage';
 import { GOLDEN } from '../content';
+import { MARKER_BAND, MARKER_DELAY_MS, MARKER_SWEEP_MS, SCIENCE_SOURCE } from '@/lib/scienceClaim';
 import {
     BRAIN_GOLD_SRC,
     FRAME_W,
@@ -51,6 +52,17 @@ export default function GoldenMindLoop({ play }: { play: boolean }) {
     // the loop comes round the brain empties and fills from the start.
     const [run, setRun] = useState(0);
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // The marker under "engages your entire brain." draws once, a beat after
+    // the section starts playing, and stays. Under reduced motion it is simply
+    // there.
+    const [marked, setMarked] = useState(false);
+    useEffect(() => {
+        if (!play || marked) return;
+        const id = setTimeout(() => setMarked(true), MARKER_DELAY_MS);
+        return () => clearTimeout(id);
+    }, [play, marked]);
+    const showMark = marked || Boolean(prefersReducedMotion);
 
     useEffect(() => {
         if (!play) return;
@@ -186,15 +198,33 @@ export default function GoldenMindLoop({ play }: { play: boolean }) {
                 </p>
             </div>
 
-            {/* The finding, and who published it. Both are the science slide's
-                own — the quote from its locale entry and the mark from the same
-                file the slide loads — so the claim has one wording and one
-                source across the product rather than a second copy here that
-                could drift from it. */}
-            <figure className="relative z-10 mt-4 flex flex-col items-center gap-3 px-4 text-center">
-                <blockquote className="max-w-[46ch] whitespace-pre-line text-[12.5px] leading-relaxed text-[#363636]/75 sm:text-[13.5px]">
-                    {t('onboarding.intro.slides.psychology.science.quote')}
-                </blockquote>
+            {/* The finding, and who published it. The claim is the science
+                slide's own (its locale entry, its source, its marker, shared
+                through lib/scienceClaim.ts), so it has one wording and one
+                citation across the product. The highlighted half is the link:
+                the emphasis and the source are the same words. The marker draws
+                across once the section is playing, as it does in onboarding. */}
+            <figure className="relative z-10 mt-6 flex flex-col items-center gap-4 px-4 text-center">
+                <p className="mx-auto max-w-[30ch] text-[22px] leading-[1.3] tracking-tight text-stone-900 sm:text-[28px]">
+                    <span className="block">{t('onboarding.intro.slides.psychology.science.claim_lead')}</span>
+                    <a
+                        href={SCIENCE_SOURCE}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block underline decoration-black/80 decoration-[1.5px] underline-offset-[6px] transition-opacity hover:opacity-70"
+                        style={{
+                            backgroundImage: MARKER_BAND,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: '0 0',
+                            backgroundSize: showMark ? '100% 100%' : '0% 100%',
+                            transition: prefersReducedMotion
+                                ? 'none'
+                                : `background-size ${MARKER_SWEEP_MS}ms cubic-bezier(0.25, 0.8, 0.3, 1)`,
+                        }}
+                    >
+                        {t('onboarding.intro.slides.psychology.science.claim_stress')}
+                    </a>
+                </p>
                 <figcaption>
                     <img
                         src="/onboarding-cards/logo-harvard-medical.svg"

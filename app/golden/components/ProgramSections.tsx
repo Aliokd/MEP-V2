@@ -1,8 +1,9 @@
-import { Shirt, Package } from 'lucide-react';
+import { Shirt, Ticket } from 'lucide-react';
 import { GOLDEN } from '../content';
 import ProgramShowcase from './ProgramShowcase';
 import FoundersSection from './FoundersSection';
 import TogetherMap from './TogetherMap';
+import ActionVideo from './ActionVideo';
 
 /**
  * Everything a golden page says that is not about one particular person:
@@ -41,11 +42,10 @@ export default function ProgramSections() {
                         {GOLDEN.perks.map((perk) => (
                             <div key={perk.id} className="bg-white/45 border border-stone-300/50 rounded-[24px] p-5 md:p-6 flex flex-col gap-4">
                                 <div className="w-12 h-12 rounded-2xl bg-[#E6E3DB] flex items-center justify-center text-stone-800">
-                                    {perk.id === 'tee' ? <Shirt className="w-6 h-6" strokeWidth={1.6} /> : <Package className="w-6 h-6" strokeWidth={1.6} />}
+                                    {perk.id === 'tee' ? <Shirt className="w-6 h-6" strokeWidth={1.6} /> : <Ticket className="w-6 h-6" strokeWidth={1.6} />}
                                 </div>
                                 <div>
                                     <p className="font-semibold">{perk.title}</p>
-                                    <p className="text-sm text-stone-600 mt-1">{perk.body}</p>
                                 </div>
                             </div>
                         ))}
@@ -59,9 +59,29 @@ export default function ProgramSections() {
             {/* Together: the globe from Connect, rather than two cards
                 describing it. The pins are examples — see TogetherMap. */}
             <section className="px-6 md:px-[10%] pb-16 md:pb-24">
-                <h2 className="text-2xl md:text-3xl tracking-tight">{GOLDEN.togetherTitle}</h2>
-                <div className="mt-8">
+                {/* Styled as the film's heading below it: both sit over a
+                    full-width picture rather than beside a paragraph. */}
+                <h2 className="text-center text-3xl md:text-5xl tracking-tight">{GOLDEN.togetherTitle}</h2>
+                <div className="mt-8 md:mt-10">
                     <TogetherMap />
+                </div>
+            </section>
+
+            {/* The film. Same 80% column as the map above it, so the two read
+                as one run rather than two widths. */}
+            <section className="px-6 md:px-[10%] pb-16 md:pb-24">
+                {/* Centred and larger than the other section headings: this one
+                    sits over the film rather than beside a paragraph, and a
+                    left-aligned line above a full-width frame reads as a label
+                    for something to its right that is not there. */}
+                <h2 className="text-center text-3xl md:text-5xl tracking-tight">{GOLDEN.videoTitle}</h2>
+                {/* Four fifths of the column on a desk, centred. The still is a
+                    YouTube JPEG of a screen recording, and a recording of a
+                    screen is soft to begin with; drawn smaller than its own
+                    pixels it reads sharp instead of enlarged. Full width on a
+                    phone, where the column is already narrower than the file. */}
+                <div className="mx-auto mt-8 w-full md:mt-10 md:w-4/5">
+                    <ActionVideo />
                 </div>
             </section>
         </>

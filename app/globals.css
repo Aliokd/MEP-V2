@@ -1816,6 +1816,31 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     .btn-press:active:not(:disabled) { transform: none; }
 }
 
+/* The Golden program's own press button: the same pressed-in offset as
+   .btn-press, printed on the ticket gradient. The fill is set inline from
+   app/golden/goldPalette.ts so there is one source for the gold; the offset
+   tone comes in as --press. */
+.golden-press {
+    margin-bottom: 7px;
+    box-shadow: 0 7px 0 0 var(--press, #9E8047), 0 18px 40px -12px rgba(158, 128, 71, 0.55);
+    transition: transform 110ms ease, box-shadow 110ms ease, filter 150ms ease;
+}
+.golden-press:hover:not(:disabled) {
+    filter: brightness(1.05) saturate(1.05);
+}
+.golden-press:active:not(:disabled) {
+    transform: translateY(7px);
+    box-shadow: 0 0 0 0 var(--press, #9E8047), 0 8px 20px -10px rgba(158, 128, 71, 0.5);
+}
+.golden-press:focus-visible {
+    outline: 3px solid rgba(197, 160, 89, 0.55);
+    outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .golden-press { transition: filter 100ms ease; }
+    .golden-press:active:not(:disabled) { transform: none; }
+}
+
 /* ── Scroll chaining ──────────────────────────────────────────────────────
    When an inner scroller reaches its end, the browser hands the rest of the
    gesture to whatever scrolls behind it. Inside a panel or a sheet that reads

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 import SiteFooterStrip from '@/components/SiteFooterStrip';
 import { getTicket } from '@/lib/goldenTickets';
+import { proYearlyPrice } from '@/lib/paddle/proYearlyPrice';
 import GoldenBadge from '../components/GoldenBadge';
 import TakeTicket from '../components/TakeTicket';
 import ProgramSections from '../components/ProgramSections';
@@ -80,7 +81,7 @@ export default async function GoldenTicketPage({ params }: { params: Params }) {
                                 </div>
                             )}
                         </div>
-                        <GoldenBadge size={56} tone="gold" className="absolute -top-4 -right-5 drop-shadow-sm" />
+                        <GoldenBadge size={56} className="absolute -top-4 -right-5 drop-shadow-sm" />
                     </div>
 
                     <p className="mt-8 text-xs text-stone-500 tabular-nums">
@@ -103,11 +104,7 @@ export default async function GoldenTicketPage({ params }: { params: Params }) {
             {/* The ticket */}
             <section className="px-6 md:px-[10%] pb-10">
                 <div className="max-w-2xl mx-auto">
-                    <TakeTicket slug={ticket.slug} status={ticket.status} />
-                    <p className="mt-6 text-center text-xs text-stone-500">
-                        {GOLDEN.footnotePhotos}{' '}
-                        <Link href="/terms" className="underline underline-offset-2 hover:text-stone-800">{GOLDEN.footnoteTerms}</Link>
-                    </p>
+                    <TakeTicket slug={ticket.slug} status={ticket.status} price={await proYearlyPrice()} holderName={ticket.name} />
                 </div>
             </section>
 

@@ -9,6 +9,18 @@ import { test, expect } from '@playwright/test';
  * exactly the failure a reader would report.
  */
 test.describe('Golden ticket page', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      // Answer the cookie dialog before it can sit over the page: its modal
+      // backdrop is z-[100] and swallows every click, so a covered control
+      // reports as "visible, enabled and stable" and then intercepted.
+      // Necessary only, which is what a reader who declines would have.
+      window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
+        v: 3, analytics: false, replay: false, at: new Date().toISOString(),
+      }));
+    });
+  });
+
   test('shows the four intro demos, each with art under its heading', async ({ page }) => {
     await page.goto('/golden/ticket/29');
 
@@ -73,5 +85,37 @@ test.describe('Golden ticket page', () => {
     const showcaseTop = (await page.getByRole('heading', { name: 'Live collab', exact: false }).boundingBox())!.y;
     const benefitsTop = (await page.getByText('What you get, exclusively').boundingBox())!.y;
     expect(showcaseTop).toBeLessThan(benefitsTop);
+  });
+
+  test('the film loads nothing from YouTube until it is pressed', async ({ page }) => {
+    await page.goto('/golden/ticket/29');
+
+    const play = page.getByRole('button', { name: 'Play the video' });
+    await play.scrollIntoViewIfNeeded();
+    await expect(play).toBeVisible();
+
+    // The point of the facade: a visitor who never presses play pays nothing
+    // for the player and is given no cookies by it. An iframe on the page at
+    // rest means the facade has been lost, which is invisible by eye.
+    await expect(page.locator('iframe[src*="youtube"]')).toHaveCount(0);
+
+    // The upload is letterboxed: 1280x653 of picture inside a 16:9 frame. The
+    // box is cut to the picture, and the still is cropped to it rather than
+    // fitted, so no black band survives at the top or the bottom.
+    const box = (await play.boundingBox())!;
+    expect(box.width / box.height).toBeCloseTo(1280 / 653, 2);
+
+    await play.click();
+    const frame = page.locator('iframe[src*="youtube-nocookie.com"]');
+    await expect(frame).toHaveCount(1);
+
+    // Playing, the frame opens to the stream's full 16:9 and the player fills
+    // it: YouTube's title bar and controls run edge to edge, and the crop
+    // that hid the bars also cut those off.
+    const frameBox = (await frame.boundingBox())!;
+    expect(frameBox.width / frameBox.height).toBeCloseTo(16 / 9, 2);
+    expect(frameBox.width).toBeCloseTo(box.width, 0);
+    // nocookie, not youtube.com: the other host is the one that sets them.
+    await expect(page.locator('iframe[src*="//www.youtube.com"]')).toHaveCount(0);
   });
 });

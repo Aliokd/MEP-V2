@@ -65,6 +65,8 @@ const KNOWN_QUESTIONS = new Set([
     // them in the same notification as the address.
     "golden_ticket",
     "about",
+    // The name they typed on the free ticket's activation card.
+    "name",
 ]);
 const MAX_ANSWER_LENGTH = 120;
 const MAX_ANSWER_ITEMS = 12;

@@ -1,4 +1,5 @@
 import { GOLDEN_TICKETS_TOTAL } from '@/lib/uiFlags';
+import { GOLD } from '../goldPalette';
 
 /**
  * The ticket's measurements and the two surfaces it is drawn on, kept beside
@@ -24,8 +25,12 @@ export const CUT: Record<TicketTone, string> = {
 
 export const BODY: Record<TicketTone, { issued: [string, string, string]; empty: [string, string] }> = {
     gold: {
-        issued: ['#F3CF6F', '#E3B54A', '#C9973A'],
-        empty: ['#EFDDA8', '#E1C67F'],
+        // The golden mind's own gradient, end to end. A taken ticket is the
+        // same gold as a full week.
+        issued: [GOLD.bright, GOLD.mid, GOLD.deep],
+        // An open place is the pale half of the same family, not a different
+        // gold: paler paper, waiting to be printed.
+        empty: [GOLD.pale, GOLD.light],
     },
     ink: {
         issued: ['#26282C', '#1A1B1E', '#141416'],
@@ -36,7 +41,7 @@ export const BODY: Record<TicketTone, { issued: [string, string, string]; empty:
 /** Ink on gold paper; gold on a black ticket. */
 export const MARK: Record<TicketTone, string> = {
     gold: '#1F1F1F',
-    ink: '#E9B94F',
+    ink: GOLD.bright,
 };
 
 export function padTicketNumber(number: number): string {
