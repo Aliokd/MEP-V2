@@ -110,13 +110,21 @@ function buildCsp(nonce: string): string {
             'https://www.google-analytics.com',
             'https://*.google-analytics.com',
             'https://*.analytics.google.com',
+            // The apex too. A CSP wildcard matches subdomains only, never the
+            // bare host, and GA4 posts hits to https://analytics.google.com/g/collect
+            // itself. Missing, those hits were blocked for every visitor who
+            // allowed analytics (seen in Tag Assistant, 2026-09-23).
+            'https://analytics.google.com',
             'https://www.google.com',
             // Google Ads conversion measurement (lib/googleAds.ts), loaded only
             // after the marketing consent row. Conversions post to the ad
             // services and doubleclick hosts, not to google-analytics, so the
             // GA list above does not cover them.
             'https://www.googleadservices.com',
-            'https://googleads.g.doubleclick.net',
+            // *.g.doubleclick.net rather than one host: googleads.g for Ads
+            // conversions, stats.g for GA4 when Google signals is on. It is the
+            // form Google's own CSP guide gives for both tags.
+            'https://*.g.doubleclick.net',
             'https://pagead2.googlesyndication.com',
             // PostHog (lib/posthog.ts). The wildcard covers both regions and
             // both roles: ingestion (eu/us.i.posthog.com) and the asset host the
