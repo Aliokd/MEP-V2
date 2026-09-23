@@ -1811,7 +1811,7 @@
   "cookies": {
     "aria_label": "Cookie consent",
     "title": "Cookies on Veinote",
-    "message": "We use cookies to understand how Veinote is used, so we can make it better.",
+    "message": "We use cookies to understand how Veinote is used, so we can make it better, and to see which of our ads bring people here.",
     "accept": "Accept all",
     "necessary": "Only necessary",
     "manage": "Manage settings",
@@ -1832,13 +1832,15 @@
     "cat_analytics_body": "Counts how Veinote is used (which pages people open, which steps they finish) so we can fix what gets in the way. Turned off, we still count visits anonymously, without storing anything on your device.",
     "cat_replay_title": "Session recording",
     "cat_replay_body": "Records how a page was used: clicks, scrolling, where something went wrong. All text is masked, so a recording never contains your lyrics or anything else you write.",
-    "current_all": "You allowed all cookies, including session recording, on this browser.",
-    "current_analytics": "You allowed necessary and analytics cookies on this browser.",
+    "current_all": "You allowed all cookies, including session recording and ad measurement, on this browser.",
     "current_necessary": "You allowed only necessary cookies on this browser.",
     "current_unanswered": "You haven't chosen yet on this browser.",
     "page_title": "Cookie settings",
     "page_intro": "Veinote uses cookies and similar storage to keep you signed in, to understand how the app is used, and, only if you allow it, to record how a page was used. Your answer stays on this device, and you can change it here at any time.",
-    "page_footnote": "More about what we collect and why is in the"
+    "page_footnote": "More about what we collect and why is in the",
+    "cat_marketing_title": "Ad measurement",
+    "cat_marketing_body": "Lets Google Ads tell us which of our ads led you here, so we spend on the ones that work. It is only used to measure which ads lead to sign-ups, never to show you ads based on your visit. Veinote itself has no ads.",
+    "current_allowed": "Allowed on this browser besides necessary cookies:"
   },
   "home": {
     "nav": {

@@ -111,6 +111,13 @@ function buildCsp(nonce: string): string {
             'https://*.google-analytics.com',
             'https://*.analytics.google.com',
             'https://www.google.com',
+            // Google Ads conversion measurement (lib/googleAds.ts), loaded only
+            // after the marketing consent row. Conversions post to the ad
+            // services and doubleclick hosts, not to google-analytics, so the
+            // GA list above does not cover them.
+            'https://www.googleadservices.com',
+            'https://googleads.g.doubleclick.net',
+            'https://pagead2.googlesyndication.com',
             // PostHog (lib/posthog.ts). The wildcard covers both regions and
             // both roles: ingestion (eu/us.i.posthog.com) and the asset host the
             // SDK pulls remote config from (eu/us-assets.i.posthog.com). Getting
@@ -140,7 +147,11 @@ function buildCsp(nonce: string): string {
         // lib/firebase.ts) to broker the handshake, so omitting it blocks the
         // frame and Google sign-in fails — and it bites hardest on mobile, where
         // popups are commonly blocked and the redirect path is the fallback.
-        "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://open.spotify.com https://*.paddle.com https://mep-v2.firebaseapp.com https://*.firebaseapp.com",
+        // The Google tag (lib/googleAds.ts, marketing consent only) runs part
+        // of its measurement in hidden iframes on td.doubleclick.net and
+        // googletagmanager.com; blocked, conversions under-report without an
+        // error anywhere but the console.
+        "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://open.spotify.com https://*.paddle.com https://mep-v2.firebaseapp.com https://*.firebaseapp.com https://td.doubleclick.net https://www.googletagmanager.com",
         "worker-src 'self' blob:",
         // The directives that need no per-request value. They were the "static
         // half" declared in next.config.ts until Firebase Hosting turned that

@@ -23,8 +23,18 @@ const CONSENT_KEY = 'veinote-cookie-consent';
  * analytics and replay — so a v2 answer is migrated rather than discarded. It
  * said yes or no to exactly this pair, and re-asking someone a question they
  * have already answered is its own kind of dark pattern.
+ *
+ * v3 -> v4 (2026-09-23): marketing, for the Google Ads tag. This one widens
+ * the ask, which by the rule above would mean re-asking, but it is migrated
+ * instead: a v2/v3 answer keeps its analytics and replay and reads as
+ * marketing: false. Nobody who answered before was asked about advertising, so
+ * nothing they said can stand in for a yes. And re-asking buys nothing: the
+ * conversions the tag exists to measure come from people arriving off an ad,
+ * who have no stored answer and meet the full question on their first visit.
+ * Asking everyone already here to also allow advertising would be badgering
+ * for no measurement at all.
  */
-const CONSENT_VERSION = 3;
+const CONSENT_VERSION = 4;
 
 /** Fired on the window so analytics can start (or stay off) without a reload. */
 export const CONSENT_EVENT = 'veinote-cookie-consent-changed';
@@ -32,16 +42,20 @@ export const CONSENT_EVENT = 'veinote-cookie-consent-changed';
 /**
  * The categories the settings panel asks about.
  *
- * There are three because there are three real things, and no more: what has to
- * run for the site to work, being counted, and being recorded. A "marketing"
- * row would be theatre — Veinote serves no ads and sets no advertising cookies
- * — and a row nobody can act on teaches people the whole panel is decoration.
+ * One row per real thing, and no more: what has to run for the site to work,
+ * being counted, being recorded, and ad measurement. Marketing was left out
+ * while Veinote set no advertising cookies, because a row nobody can act on
+ * teaches people the whole panel is decoration. The Google Ads tag
+ * (lib/googleAds.ts) made it a real thing, so it is a row now. Veinote still
+ * shows no ads; this is about measuring the ads Veinote runs elsewhere.
  *
  * Analytics and replay are split because the privacy policy splits them: being
  * counted and having a session played back are different asks, and someone can
- * reasonably say yes to the first and no to the second.
+ * reasonably say yes to the first and no to the second. Marketing is
+ * independent of both: it goes to a different company for a different purpose,
+ * so neither answer implies the other.
  */
-export type ConsentCategory = 'necessary' | 'analytics' | 'replay';
+export type ConsentCategory = 'necessary' | 'analytics' | 'replay' | 'marketing';
 
 export interface ConsentState {
     /** Sign-in, security, saved work, and this answer itself. Never optional. */
@@ -50,14 +64,21 @@ export interface ConsentState {
     analytics: boolean;
     /** PostHog session replay. */
     replay: boolean;
+    /** Google Ads conversion measurement (lib/googleAds.ts). */
+    marketing: boolean;
 }
 
 interface StoredConsent {
     v: number;
     analytics: boolean;
     replay: boolean;
+    /** Absent on v3 answers, which never asked about it. */
+    marketing?: boolean;
     at: string;
 }
+
+/** What writeConsent and normalizeConsent take: the three optional answers. */
+export type ConsentAnswer = { analytics: boolean; replay: boolean; marketing: boolean };
 
 /**
  * Answers that allowed nothing optional, given before this moment, are asked
@@ -82,18 +103,25 @@ interface StoredConsent {
 const REASK_DECLINES_BEFORE = Date.parse('2026-08-28T08:00:00.000Z');
 
 /** Frozen, so the two common answers keep one identity across renders. */
-export const ACCEPT_ALL: ConsentState = Object.freeze({ necessary: true, analytics: true, replay: true });
-export const NECESSARY_ONLY: ConsentState = Object.freeze({ necessary: true, analytics: false, replay: false });
+export const ACCEPT_ALL: ConsentState = Object.freeze({ necessary: true, analytics: true, replay: true, marketing: true });
+export const NECESSARY_ONLY: ConsentState = Object.freeze({ necessary: true, analytics: false, replay: false, marketing: false });
+/** A v2 "accept all": everything that existed then, which did not include marketing. */
+const V2_ACCEPT_ALL: ConsentState = Object.freeze({ necessary: true, analytics: true, replay: true, marketing: false });
 
 /**
  * Replay implies analytics, so an inconsistent pair is resolved rather than
  * stored. Being recorded but never counted is not a state anyone asks for, the
  * panel doesn't offer it, and honouring it would mean carrying a tier through
- * lib/posthog.ts that exists only to satisfy a shape.
+ * lib/posthog.ts that exists only to satisfy a shape. Marketing stands alone.
  */
-export function normalizeConsent(state: { analytics: boolean; replay: boolean }): ConsentState {
+export function normalizeConsent(state: ConsentAnswer): ConsentState {
     const analytics = Boolean(state.analytics);
-    return { necessary: true, analytics, replay: analytics && Boolean(state.replay) };
+    return {
+        necessary: true,
+        analytics,
+        replay: analytics && Boolean(state.replay),
+        marketing: Boolean(state.marketing),
+    };
 }
 
 /**
@@ -103,7 +131,7 @@ export function normalizeConsent(state: { analytics: boolean; replay: boolean })
  * an earlier version, which is exactly the population being re-asked.
  */
 function isStaleDecline(state: ConsentState, at: string | undefined): boolean {
-    if (state.analytics) return false;
+    if (state.analytics || state.marketing) return false;
     const answeredAt = at ? Date.parse(at) : NaN;
     return Number.isNaN(answeredAt) || answeredAt < REASK_DECLINES_BEFORE;
 }
@@ -117,15 +145,21 @@ export function readConsent(): ConsentState | null {
 
         const parsed = JSON.parse(raw) as Partial<StoredConsent> & { choice?: string };
 
-        // A v2 answer: one word standing for both categories at once.
+        // A v2 answer: one word standing for both categories at once. Its
+        // "all" predates marketing, so it is all of analytics and replay only.
         if (parsed?.v === 2) {
-            if (parsed.choice === 'all') return ACCEPT_ALL;
+            if (parsed.choice === 'all') return V2_ACCEPT_ALL;
             if (parsed.choice !== 'necessary') return null;
             return isStaleDecline(NECESSARY_ONLY, parsed.at) ? null : NECESSARY_ONLY;
         }
 
-        if (parsed?.v !== CONSENT_VERSION) return null;
-        const state = normalizeConsent({ analytics: !!parsed.analytics, replay: !!parsed.replay });
+        // v3 never asked about marketing, so it reads as a no (see CONSENT_VERSION).
+        if (parsed?.v !== 3 && parsed?.v !== CONSENT_VERSION) return null;
+        const state = normalizeConsent({
+            analytics: !!parsed.analytics,
+            replay: !!parsed.replay,
+            marketing: parsed.v === CONSENT_VERSION && !!parsed.marketing,
+        });
         return isStaleDecline(state, parsed.at) ? null : state;
     } catch {
         // A corrupt value is treated as "not asked yet" — the safe direction,
@@ -144,7 +178,12 @@ export function hasReplayConsent(): boolean {
     return readConsent()?.replay === true;
 }
 
-export function writeConsent(state: { analytics: boolean; replay: boolean }): ConsentState {
+/** True only on an explicit yes to ad measurement. */
+export function hasMarketingConsent(): boolean {
+    return readConsent()?.marketing === true;
+}
+
+export function writeConsent(state: ConsentAnswer): ConsentState {
     const next = normalizeConsent(state);
     if (typeof window === 'undefined') return next;
 
@@ -157,6 +196,7 @@ export function writeConsent(state: { analytics: boolean; replay: boolean }): Co
             v: CONSENT_VERSION,
             analytics: next.analytics,
             replay: next.replay,
+            marketing: next.marketing,
             at: new Date().toISOString(),
         };
         localStorage.setItem(CONSENT_KEY, JSON.stringify(value));

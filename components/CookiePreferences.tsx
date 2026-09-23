@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from 'react';
-import { ShieldCheck, BarChart3, Video, type LucideIcon } from 'lucide-react';
+import { ShieldCheck, BarChart3, Video, Megaphone, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import {
     getConsentSnapshot,
@@ -29,11 +29,13 @@ const ROWS: { id: ConsentCategory; Icon: LucideIcon; locked?: boolean }[] = [
     { id: 'necessary', Icon: ShieldCheck, locked: true },
     { id: 'analytics', Icon: BarChart3 },
     { id: 'replay', Icon: Video },
+    { id: 'marketing', Icon: Megaphone },
 ];
 
 interface Draft {
     analytics: boolean;
     replay: boolean;
+    marketing: boolean;
 }
 
 export default function CookiePreferences({
@@ -55,7 +57,7 @@ export default function CookiePreferences({
      * here — the key changes, and the half-edited draft that is now answering a
      * stale question goes with it.
      */
-    const key = consent ? `${consent.analytics}-${consent.replay}` : 'unanswered';
+    const key = consent ? `${consent.analytics}-${consent.replay}-${consent.marketing}` : 'unanswered';
 
     return <PreferencesForm key={key} initial={consent} onSaved={onSaved} className={className} />;
 }
@@ -77,6 +79,7 @@ function PreferencesForm({
     const [draft, setDraft] = useState<Draft>({
         analytics: initial?.analytics ?? false,
         replay: initial?.replay ?? false,
+        marketing: initial?.marketing ?? false,
     });
     const [saved, setSaved] = useState(false);
 
@@ -184,7 +187,7 @@ function PreferencesForm({
                 </p>
                 <button
                     type="button"
-                    onClick={() => save({ analytics: false, replay: false })}
+                    onClick={() => save({ analytics: false, replay: false, marketing: false })}
                     className="px-4 py-2.5 text-[13px] font-semibold text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-full transition-all active:scale-95"
                 >
                     {t('cookies.necessary')}

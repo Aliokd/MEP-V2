@@ -26,14 +26,23 @@ export default function CookieSettingsButton() {
     const consent = useSyncExternalStore(subscribeConsent, getConsentSnapshot, getServerConsentSnapshot);
     const [open, setOpen] = useState(false);
 
+    // Named from what is actually allowed rather than picked from fixed
+    // sentences: with marketing independent of the other two, there are more
+    // combinations than sentences, and a summary that says "all" when one row
+    // is off misstates the answer on the page that exists to show it.
+    const allowed = consent
+        ? (['analytics', 'replay', 'marketing'] as const)
+              .filter((id) => consent[id])
+              .map((id) => t(`cookies.cat_${id}_title`).toLowerCase())
+        : [];
     const current =
         consent === null
             ? t('cookies.current_unanswered')
-            : consent.replay
+            : consent.analytics && consent.replay && consent.marketing
               ? t('cookies.current_all')
-              : consent.analytics
-                ? t('cookies.current_analytics')
-                : t('cookies.current_necessary');
+              : allowed.length === 0
+                ? t('cookies.current_necessary')
+                : `${t('cookies.current_allowed')} ${allowed.join(', ')}.`;
 
     return (
         <div className="mt-12 pt-8 border-t border-stone-400/20 flex flex-col sm:flex-row sm:items-center gap-3">

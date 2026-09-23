@@ -1811,7 +1811,7 @@
   "cookies": {
     "aria_label": "Samtycke till kakor",
     "title": "Kakor på Veinote",
-    "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre.",
+    "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre, och för att se vilka av våra annonser som får folk att hitta hit.",
     "accept": "Acceptera alla",
     "necessary": "Bara nödvändiga",
     "manage": "Inställningar",
@@ -1832,13 +1832,15 @@
     "cat_analytics_body": "Räknar hur Veinote används (vilka sidor som öppnas, vilka steg som slutförs) så att vi kan röja undan det som är i vägen. Är den av räknar vi fortfarande besök anonymt, utan att spara något på din enhet.",
     "cat_replay_title": "Inspelning av sessioner",
     "cat_replay_body": "Spelar in hur en sida användes: klick, scrollning, var något gick fel. All text är maskerad, så en inspelning innehåller aldrig dina låttexter eller något annat du skriver.",
-    "current_all": "Du har tillåtit alla kakor, även inspelning av sessioner, i den här webbläsaren.",
-    "current_analytics": "Du har tillåtit nödvändiga kakor och analys i den här webbläsaren.",
+    "current_all": "Du har tillåtit alla kakor, även inspelning av sessioner och annonsmätning, i den här webbläsaren.",
     "current_necessary": "Du har bara tillåtit nödvändiga kakor i den här webbläsaren.",
     "current_unanswered": "Du har inte valt än i den här webbläsaren.",
     "page_title": "Kakinställningar",
     "page_intro": "Veinote använder kakor och liknande lagring för att hålla dig inloggad, för att förstå hur appen används och, bara om du tillåter det, för att spela in hur en sida användes. Ditt val stannar på den här enheten och du kan ändra det här när som helst.",
-    "page_footnote": "Mer om vad vi samlar in och varför finns i"
+    "page_footnote": "Mer om vad vi samlar in och varför finns i",
+    "cat_marketing_title": "Annonsmätning",
+    "cat_marketing_body": "Låter Google Ads berätta för oss vilken av våra annonser som ledde dig hit, så att vi lägger pengarna på de som fungerar. Det används bara för att mäta vilka annonser som leder till registreringar, aldrig för att visa dig annonser utifrån ditt besök. Veinote självt har inga annonser.",
+    "current_allowed": "Tillåtet i den här webbläsaren utöver nödvändiga kakor:"
   },
   "home": {
     "nav": {

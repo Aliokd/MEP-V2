@@ -1811,7 +1811,7 @@
   "cookies": {
     "aria_label": "Samtykke til informasjonskapsler",
     "title": "Informasjonskapsler på Veinote",
-    "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre.",
+    "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre, og for å se hvilke av annonsene våre som får folk hit.",
     "accept": "Godta alle",
     "necessary": "Bare nødvendige",
     "manage": "Innstillinger",
@@ -1832,13 +1832,15 @@
     "cat_analytics_body": "Teller hvordan Veinote brukes (hvilke sider som åpnes, hvilke steg folk fullfører) så vi kan rydde vekk det som står i veien. Er den av, teller vi fortsatt besøk anonymt, uten å lagre noe på enheten din.",
     "cat_replay_title": "Opptak av økter",
     "cat_replay_body": "Tar opp hvordan en side ble brukt: klikk, rulling, hvor noe gikk galt. All tekst er maskert, så et opptak inneholder aldri tekstene dine eller noe annet du skriver.",
-    "current_all": "Du har tillatt alle informasjonskapsler, også opptak av økter, i denne nettleseren.",
-    "current_analytics": "Du har tillatt nødvendige informasjonskapsler og analyse i denne nettleseren.",
+    "current_all": "Du har tillatt alle informasjonskapsler, også opptak av økter og annonsemåling, i denne nettleseren.",
     "current_necessary": "Du har bare tillatt nødvendige informasjonskapsler i denne nettleseren.",
     "current_unanswered": "Du har ikke valgt ennå i denne nettleseren.",
     "page_title": "Informasjonskapsler",
     "page_intro": "Veinote bruker informasjonskapsler og lignende lagring for å holde deg innlogget, for å forstå hvordan appen brukes, og, bare hvis du tillater det, for å ta opp hvordan en side ble brukt. Valget ditt ligger på denne enheten, og du kan endre det her når som helst.",
-    "page_footnote": "Mer om hva vi samler inn og hvorfor står i"
+    "page_footnote": "Mer om hva vi samler inn og hvorfor står i",
+    "cat_marketing_title": "Annonsemåling",
+    "cat_marketing_body": "Lar Google Ads fortelle oss hvilken av annonsene våre som førte deg hit, så vi bruker pengene på de som virker. Det brukes bare til å måle hvilke annonser som fører til registreringer, aldri til å vise deg annonser basert på besøket ditt. Veinote selv har ingen annonser.",
+    "current_allowed": "Tillatt i denne nettleseren i tillegg til nødvendige informasjonskapsler:"
   },
   "home": {
     "nav": {

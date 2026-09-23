@@ -9,6 +9,7 @@ import {
     disableSessionReplay,
 } from '@/lib/posthog';
 import { initFirebaseAnalytics } from '@/lib/firebaseAuth';
+import { initGoogleAds, disableGoogleAds } from '@/lib/googleAds';
 import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '@/lib/cookieConsent';
 
 /**
@@ -32,6 +33,10 @@ import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '
  * removed on 2026-09-20 (PostHog replay covers it, and one recorder of
  * what people type is enough to keep an eye on).
  *
+ * Marketing is a third, independent category: it starts the Google Ads tag
+ * (lib/googleAds.ts), which goes to a different company for a different
+ * purpose, so it neither needs nor implies the other two.
+ *
  * Renders nothing: the whole job is the effects.
  */
 export default function AnalyticsGate() {
@@ -41,6 +46,7 @@ export default function AnalyticsGate() {
     const consent = useSyncExternalStore(subscribeConsent, getConsentSnapshot, getServerConsentSnapshot);
     const counted = consent?.analytics === true;
     const recorded = consent?.replay === true;
+    const marketed = consent?.marketing === true;
 
     // Anonymous tier for everyone, before and regardless of any answer.
     useEffect(() => {
@@ -66,6 +72,11 @@ export default function AnalyticsGate() {
         if (recorded) enableSessionReplay();
         else disableSessionReplay();
     }, [recorded]);
+
+    useEffect(() => {
+        if (marketed) initGoogleAds();
+        else disableGoogleAds();
+    }, [marketed]);
 
     return null;
 }
