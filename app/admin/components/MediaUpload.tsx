@@ -77,6 +77,19 @@ export default function MediaUpload({
             // index at the end plays nothing until it has all arrived.
             const verdict = await inspectVideo(file, probe);
             if (verdict.problems.length > 0) {
+                // A warning shown while the upload ran anyway was how four
+                // 150 to 300 MB editor exports reached Mind Power (September
+                // 2026). Heavy files now stop here and need a deliberate yes.
+                const proceed = window.confirm(
+                    `This video will load slowly for everyone who opens it:\n\n- ${verdict.problems.join("\n- ")}\n\n` +
+                        `Press Cancel and compress it first (ask for the compressed version, or run scripts/upload-lesson-video.mjs), ` +
+                        `or press OK to upload it as it is.`,
+                );
+                if (!proceed) {
+                    setWarning(`Not uploaded: ${verdict.problems.join("; ")}. Compress it and drop the compressed file here.`);
+                    if (inputRef.current) inputRef.current.value = "";
+                    return;
+                }
                 setWarning(
                     `This will load slowly: ${verdict.problems.join("; ")}. Compress it first with ` +
                         `node scripts/upload-lesson-video.mjs "${file.name}" <slug> --skip-upload, ` +
