@@ -18,10 +18,13 @@ import { isEntitled, TRIAL_DAYS, type PlanId } from './paddle/config';
  *     born with, and "free" is what the webhook writes once a subscription
  *     has lapsed.
  *
- * A trial is time-boxed by `billing.trialEndsAt`. Onboarding stamps it at
- * signup, the console can move it, and a Paddle trial overwrites it with
- * Paddle's own date. Past that date, with no paid or granted plan, the
- * account is `expired`: the platform shows the plans instead of the canvas.
+ * A card is required to start a trial. The trial is Paddle's: it begins
+ * when the card goes in at the paywall, and Paddle writes its end date. The
+ * console can also grant a no-card trial to a chosen person ("Trial for N
+ * days"), which is the one other way a trial date is set. An account with
+ * neither (it typed an email and never reached the card) is `unpaid`: the
+ * platform shows the plans. Past a trial's date, with nothing else
+ * standing in, the account is `expired`.
  *
  * Both the browser hook (lib/useUserPlan.ts) and the server read through
  * this function, so the console, the paywall and the platform can never
@@ -30,8 +33,13 @@ import { isEntitled, TRIAL_DAYS, type PlanId } from './paddle/config';
 
 export type Tier = 'trial' | 'free' | 'pro' | 'max' | 'comp';
 
-/** The level of access, highest first. `trial` is Pro-level access with an end date. */
-export type Access = 'pro' | 'veinote' | 'trial' | 'expired' | 'none';
+/**
+ * The level of access, highest first. `trial` is Pro-level access with an
+ * end date. `unpaid` is an account that exists but never started a trial;
+ * `expired` had one (or a plan) and it ran out. `none` is no account, or an
+ * account that could not be read; it is never used to lock anyone out.
+ */
+export type Access = 'pro' | 'veinote' | 'trial' | 'expired' | 'unpaid' | 'none';
 
 export type AccessSource = 'paid' | 'granted' | 'trial' | 'none';
 
@@ -130,13 +138,12 @@ export function resolveEntitlement(input: EntitlementInput): Entitlement {
         return { access: 'expired', source: 'none', isPro: false, isVeinote: false, paid: false, plan, trialEndsAt: null, trialDaysLeft: null };
     }
 
-    // The trial. An account with no end date on file is one made before the
-    // date was stamped at signup; it is treated as still on its trial rather
-    // than thrown out, and the console lists it as needing an end date.
+    // A trial granted from the console, with its date. No date means no
+    // trial was ever started: the card is what starts one.
     const ends = input.trialEndsAt ?? null;
     const endsAt = parseTime(ends);
     if (endsAt === null) {
-        return { access: 'trial', source: 'trial', isPro: true, isVeinote: true, paid: false, plan, trialEndsAt: null, trialDaysLeft: null };
+        return { access: 'unpaid', source: 'none', isPro: false, isVeinote: false, paid: false, plan, trialEndsAt: null, trialDaysLeft: null };
     }
     if (endsAt > now) {
         return { access: 'trial', source: 'trial', isPro: true, isVeinote: true, paid: false, plan, trialEndsAt: ends, trialDaysLeft: daysLeft(ends, now) };
@@ -156,6 +163,7 @@ export const ACCESS_LABELS: Record<Access, string> = {
     veinote: 'Veinote',
     trial: 'Trial',
     expired: 'Expired',
+    unpaid: 'No plan',
     none: 'No access',
 };
 

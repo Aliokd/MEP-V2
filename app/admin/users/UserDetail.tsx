@@ -122,7 +122,11 @@ export default function UserDetail({
                 <header className="sticky top-0 z-10 bg-ink-900 border-b border-ink-600 px-5 py-4 flex items-start gap-3">
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                            {u?.tier && <Badge tone={TIER_TONE[u.tier] || "neutral"}>{tierLabel(u.tier)}</Badge>}
+                            {u?.signup?.method === "onboarding" && !u.signup.verifiedAt ? (
+                                <Badge tone="neutral">Signup not finished</Badge>
+                            ) : (
+                                u?.tier && <Badge tone={TIER_TONE[u.tier] || "neutral"}>{tierLabel(u.tier)}</Badge>
+                            )}
                             {detail && detail.entitlement.access === "expired" && <Badge tone="red">expired</Badge>}
                             {detail?.adminRole && <Badge tone="blue">{detail.adminRole}</Badge>}
                             {detail?.auth?.disabled && <Badge tone="red">account disabled</Badge>}

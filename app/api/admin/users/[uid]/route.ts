@@ -9,6 +9,7 @@ import { isEntitled, getPriceId, type PlanId } from "@/lib/paddle/config";
 import { getPaddle } from "@/lib/paddle/server";
 import { syncFromPaddle } from "@/lib/paddle/sync";
 import { resolveEntitlement } from "@/lib/entitlement";
+import { syncMembership } from "@/lib/membership";
 import { issueTicketForUser, releaseTicketForUser } from "@/lib/goldenGrants";
 import { COLLECTION as GOLDEN_COLLECTION, getTicket, shapeTicket } from "@/lib/goldenTickets";
 
@@ -241,6 +242,10 @@ export const PATCH = withAdmin("users.write", async (request, admin, ctx: Ctx) =
 
     if (Object.keys(update).length > 0) {
         await ref.update(update);
+    }
+    // Tier and trial both decide whether this person is listed in Connect.
+    if (actions.some((a) => a === "tier" || a === "plan" || a === "trial")) {
+        await syncMembership(uid);
     }
 
     if (actions.length === 0) {

@@ -757,6 +757,46 @@ function OnboardingPageInner() {
         }
         if (params.get('from')) setSignupSource(params.get('from') || 'direct');
 
+        // The link from the day-after reminder email. Opening it proves the
+        // inbox the way the code does, so the server finishes the
+        // verification and signs this browser in; the flow then picks up at
+        // the step it stopped on, with the answers it had. The token leaves
+        // the address bar at once: it is single-use, but a screenshot or a
+        // shared tab should not carry it.
+        const resumeToken = params.get('resume');
+        if (resumeToken) {
+            const clean = new URL(window.location.href);
+            clean.searchParams.delete('resume');
+            window.history.replaceState(window.history.state, '', clean.toString());
+            fetch('/api/onboarding/resume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: resumeToken }),
+            })
+                .then(async (res) => {
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.token) {
+                        capture('signup_resume_link_failed', { error: data.error ?? res.status });
+                        // Finished some other way since the email: signing in is the way back.
+                        if (data.error === 'already-finished') window.location.assign('/signin');
+                        return;
+                    }
+                    await signInWithCustomToken(auth, data.token);
+                    if (typeof data.email === 'string') setEmail(data.email);
+                    if (data.answers && typeof data.answers === 'object') setAnswers(data.answers);
+                    if (typeof data.source === 'string') setSignupSource(data.source);
+                    setPendingVerification(false);
+                    capture('signup_resumed_link', { step: data.step ?? null });
+                    // Verified now, so the welcome mail is owed, as after the code.
+                    authedFetch('/api/emails/welcome', {
+                        method: 'POST',
+                        body: JSON.stringify({ locale: language }),
+                    }).catch((err) => console.error('Failed to trigger welcome email:', err));
+                    setCurrentStep(data.hasPlan ? STEPS.WELCOME : (data.step || STEPS.VERDICT));
+                })
+                .catch(() => { /* the ordinary flow stands; the email step will offer the code */ });
+        }
+
         // A golden code. Checked with the server before it changes anything;
         // a bad, spent or revoked code leaves the visitor on the ordinary flow.
         const goldenCode = params.get('golden');
@@ -812,11 +852,39 @@ function OnboardingPageInner() {
             .then((snap) => {
                 if (cancelled) return;
                 const signup = snap.data()?.signup;
-                setPendingVerification(signup?.method === 'onboarding' && !signup?.verifiedAt);
+                const pending = signup?.method === 'onboarding' && !signup?.verifiedAt;
+                setPendingVerification(pending);
+                // Back in the same browser after closing the tab: not the quiz
+                // again, but the step it stopped on, answers and all. Only from
+                // the very start of the flow; anyone already past it is where
+                // they meant to be.
+                const lastStep = signup?.lastStep;
+                if (pending && (lastStep === STEPS.VERDICT || lastStep === STEPS.OFFER || lastStep === STEPS.PAYWALL)) {
+                    const saved = snap.data()?.answers;
+                    if (saved && typeof saved === 'object') {
+                        setAnswers((prev) => (Object.keys(prev).length ? prev : saved));
+                    }
+                    setCurrentStep((cur) => (cur === STEPS.INTRO ? lastStep : cur));
+                }
             })
             .catch(() => { /* unreadable doc: not a pending onboarding account */ });
         return () => { cancelled = true; };
     }, [user]);
+
+    /**
+     * How far an unfinished signup has got, kept on the account. The
+     * day-after reminder's link and a return visit both land here again
+     * rather than at the first question. Written only while the account is
+     * pending: a finished one has nothing to resume.
+     */
+    useEffect(() => {
+        if (!user || !pendingVerification) return;
+        if (currentStep !== STEPS.VERDICT && currentStep !== STEPS.OFFER && currentStep !== STEPS.PAYWALL) return;
+        void authedFetch('/api/onboarding/progress', {
+            method: 'POST',
+            body: JSON.stringify({ step: currentStep }),
+        }).catch(() => { /* the answers are saved regardless; the step is a nicety */ });
+    }, [currentStep, user, pendingVerification]);
 
     /**
      * The ticket, used. Runs once there is an account to put it on: the one

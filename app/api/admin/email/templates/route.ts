@@ -12,6 +12,8 @@ import { betaWelcomeEmail } from "@/lib/email/templates/betaWelcome";
 import { collabInviteEmail } from "@/lib/email/templates/collabInvite";
 import { songCommentedEmail, songLikedEmail } from "@/lib/email/templates/engagement";
 import { trialEndingEmail } from "@/lib/email/templates/trialEnding";
+import { signupNudgeEmail } from "@/lib/email/templates/signupNudge";
+import { TRIAL_DAYS } from "@/lib/paddle/config";
 import { goldenTicketEmail } from "@/lib/email/templates/goldenTicket";
 import { LOCALES } from "@/lib/content";
 
@@ -48,6 +50,18 @@ function renderSample(id: string, locale: EmailLocale, overrides: Awaited<Return
                     joinUrl: `${APP_URL}/signin`,
                     trialDays: 14,
                     waitlistMode: false,
+                },
+                overrides,
+            );
+        case "signup_nudge":
+            return signupNudgeEmail(
+                locale,
+                {
+                    name: "Alex",
+                    days: TRIAL_DAYS,
+                    // A stand-in: a real link is single-use and belongs to one account.
+                    resumeUrl: `${APP_URL}/onboarding?resume=preview`,
+                    unsubscribeUrl: `${APP_URL}/unsubscribe`,
                 },
                 overrides,
             );

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { syncMembership } from "@/lib/membership";
 import { withAdmin } from "@/lib/admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { auditContext, writeAudit } from "@/lib/admin/audit";
@@ -52,6 +53,7 @@ export const POST = withAdmin("golden.write", async (request, admin) => {
     if (previousTier !== "comp") {
         await userRef.update({ tier: "comp" });
     }
+    await syncMembership(uid);
 
     const result = await issueTicketForUser({
         uid,

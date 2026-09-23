@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { syncMembership } from "@/lib/membership";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { requireUser } from "@/lib/apiAuth";
 import { rateLimitGuard } from "@/lib/rateLimit";
@@ -110,6 +111,7 @@ export async function POST(request: Request) {
     } catch {
         /* the grant is in; the name is a courtesy */
     }
+    await syncMembership(uid);
 
     return NextResponse.json({ success: true, name: ticket.name, invites: ticket.invites });
 }

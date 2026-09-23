@@ -45,6 +45,9 @@ export default function TrialEndedScreen() {
 
     // A lapsed subscriber has had a plan; the trial wording would be wrong.
     const lapsed = plan.billing.hasSubscription;
+    // Never started a trial: the card at checkout is what starts it, so this
+    // screen is the invitation, not the bad news.
+    const neverStarted = plan.access === 'unpaid' && !lapsed;
     // The first checkout carries Paddle's trial; a returning subscriber's
     // card is charged at once, so the "nothing today" line is only true once.
     const trialAhead = !lapsed;
@@ -93,10 +96,10 @@ export default function TrialEndedScreen() {
             <div className="bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[28px] sm:rounded-[32px] border border-stone-200/70 p-6 sm:p-10 max-w-2xl w-full shadow-[0_24px_60px_rgba(0,0,0,0.08)] flex flex-col gap-7">
                 <div className="space-y-2 text-center">
                     <h1 className="text-2xl sm:text-3xl font-sans font-light text-stone-800 tracking-[-0.025em] leading-[1.2]">
-                        {lapsed ? t('trial_ended.lapsed_title') : t('trial_ended.title')}
+                        {lapsed ? t('trial_ended.lapsed_title') : neverStarted ? t('trial_ended.start_title').replace('{days}', String(TRIAL_DAYS)) : t('trial_ended.title')}
                     </h1>
                     <p className="text-sm sm:text-[15px] text-stone-500 leading-relaxed font-medium max-w-md mx-auto">
-                        {lapsed ? t('trial_ended.lapsed_body') : t('trial_ended.body')}
+                        {lapsed ? t('trial_ended.lapsed_body') : neverStarted ? t('trial_ended.start_body') : t('trial_ended.body')}
                     </p>
                 </div>
 

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { authedFetch } from '@/lib/authedFetch';
 import type { BillingPeriod, PlanId } from '@/lib/paddle/config';
 import { resolveEntitlement, type Access, type AccessSource } from '@/lib/entitlement';
 
@@ -48,6 +47,12 @@ export interface UserPlan {
      * page the founders sent them.
      */
     golden: { ticket: string; invites: number } | null;
+    /**
+     * The account was made at the onboarding email step and the flow was
+     * never finished (no code, no link from the reminder email). The
+     * platform sends such an account back to /onboarding to finish.
+     */
+    pendingSignup: boolean;
     loading: boolean;
 }
 
@@ -62,6 +67,7 @@ const EMPTY_BILLING: BillingDetails = {
 
 const EMPTY: Omit<UserPlan, 'loading'> = {
     golden: null,
+    pendingSignup: false,
     access: 'none',
     source: 'none',
     isPro: false,
@@ -89,10 +95,6 @@ export function useUserPlan(): UserPlan {
     const { user, loading: authLoading } = useAuth();
     const [state, setState] = useState<Omit<UserPlan, 'loading'>>(EMPTY);
     const [loading, setLoading] = useState(true);
-    // A trial with no end date is one the server has not stamped yet (an
-    // account made by Google sign-in rather than the onboarding step). Asked
-    // for once per session; the snapshot below picks the date up when it lands.
-    const stampedRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (authLoading) return;
@@ -121,18 +123,12 @@ export function useUserPlan(): UserPlan {
                     createdAt: typeof data.createdAt === 'string' ? data.createdAt : null,
                 });
 
-                if (snap.exists() && ent.source === 'trial' && !ent.paid && !trialEndsAt && stampedRef.current !== user.uid) {
-                    stampedRef.current = user.uid;
-                    void authedFetch('/api/account/start-trial', { method: 'POST' }).catch(() => {
-                        // Nothing to do here: the next visit asks again, and the
-                        // account stays on its trial meanwhile.
-                    });
-                }
-
                 const scheduled = billing.scheduledChange;
                 const goldenTicket = typeof data.golden?.ticket === 'string' ? data.golden.ticket : null;
 
+                const signup = data.signup ?? {};
                 setState({
+                    pendingSignup: signup.method === 'onboarding' && !signup.verifiedAt && user.emailVerified === false,
                     golden: goldenTicket
                         ? { ticket: goldenTicket, invites: typeof data.golden?.invites === 'number' ? data.golden.invites : 0 }
                         : null,

@@ -1,5 +1,4 @@
 import { TERMS_VERSION } from "@/lib/legalVersions";
-import { defaultTrialEnd } from "@/lib/entitlement";
 
 /**
  * The users/{uid} document as it is born, built in one place.
@@ -30,10 +29,9 @@ export interface NewUserProfileInput {
         attribution?: SignupAttribution | null;
     };
     /**
-     * When the trial ends (ISO). The server stamps TRIAL_DAYS from now unless
-     * told otherwise (an invited account may get longer). Left null only by
-     * a client-side create, which the rules keep from setting it; the plan
-     * hook then asks /api/account/start-trial to stamp it.
+     * When a console-granted trial ends (ISO). Accounts are born without
+     * one: a trial starts when the card goes in at the paywall, and Paddle
+     * writes that date. Only the admin console passes a value here.
      */
     trialEndsAt?: string | null;
 }
@@ -61,9 +59,9 @@ export function newUserProfile({ uid, name, email, answers, signup, trialEndsAt 
         email,
         answers: answers || {},
         createdAt: now,
-        // "trial" is the tier every account is born with: full access until
-        // `billing.trialEndsAt`, then the plans. A Paddle trial, once a card
-        // is entered, replaces the date with Paddle's own.
+        // "trial" is the tier every account is born with. It opens nothing
+        // on its own: with no trial date and no subscription the account is
+        // "unpaid" (lib/entitlement.ts) until the card goes in.
         tier: "trial",
         lastActiveAt: now,
         // Signup happens behind a "By continuing, you agree to our Terms"
@@ -78,7 +76,7 @@ export function newUserProfile({ uid, name, email, answers, signup, trialEndsAt 
             paddleCustomerId: null,
             paddleSubscriptionId: null,
             subscriptionStatus: null,
-            trialEndsAt: trialEndsAt === undefined ? defaultTrialEnd() : trialEndsAt,
+            trialEndsAt: trialEndsAt ?? null,
             currentPeriodEnd: null,
             welcomeEmailSent: false,
             trialReminderSentAt: null,

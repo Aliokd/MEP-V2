@@ -29,9 +29,7 @@ export async function createUserProfile(user: User, options: CreateUserProfileOp
         name,
         email: user.email || "",
         answers: options.answers,
-        // Stamped by the server, never the browser: the rules refuse a
-        // trial date from a client, and the plan hook asks
-        // /api/account/start-trial for one the first time it reads null.
+        // Born without a trial: the card starts one (see lib/entitlement.ts).
         trialEndsAt: null,
     }));
 

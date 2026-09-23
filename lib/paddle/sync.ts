@@ -2,6 +2,7 @@ import "server-only";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { planFromPriceId, isEntitled } from "./config";
 import { getPaddle } from "./server";
+import { syncMembership } from "@/lib/membership";
 
 /**
  * The one place a Paddle subscription is written onto a user document.
@@ -127,6 +128,7 @@ export async function writeSubscription(uid: string, sub: SubscriptionLike, occu
         },
         { merge: true },
     );
+    await syncMembership(uid);
 
     return `synced ${uid}`;
 }

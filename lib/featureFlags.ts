@@ -17,6 +17,7 @@ export const FEATURE_FLAGS = {
     connect_posting: "Posting to the Connect feed",
     signups: "New account signups",
     trial_reminders: "Trial reminder email (the day before a no-card trial ends)",
+    signup_nudges: "Unfinished signup reminder (a day after someone leaves onboarding before the card)",
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;

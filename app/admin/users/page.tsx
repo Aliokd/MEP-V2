@@ -27,6 +27,8 @@ export interface DirectoryUser {
     sanctioned: boolean;
     /** One of the hundred: the ticket's slug and its number on the wall. */
     golden: { slug: string; number: number | null } | null;
+    /** Typed an email into onboarding and left before the code or the card. */
+    pendingSignup?: boolean;
 }
 
 export default function UsersPage() {
@@ -205,7 +207,11 @@ function UserDirectory() {
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                <Badge tone={TIER_TONE[u.tier || ""] || "neutral"}>{tierLabel(u.tier)}</Badge>
+                                                {u.pendingSignup ? (
+                                                    <Badge tone="neutral">Signup not finished</Badge>
+                                                ) : (
+                                                    <Badge tone={TIER_TONE[u.tier || ""] || "neutral"}>{tierLabel(u.tier)}</Badge>
+                                                )}
                                                 {u.subscriptionStatus && (
                                                     <span className="text-[11px] text-ink-500">{statusLabel(u.subscriptionStatus)}</span>
                                                 )}

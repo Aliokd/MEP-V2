@@ -14,6 +14,7 @@ const DAY = 24 * 60 * 60 * 1000;
 import { ASSIGNABLE_TIERS } from "@/lib/admin/tiers";
 import { issueTicketForUser } from "@/lib/goldenGrants";
 import { defaultTrialEnd } from "@/lib/entitlement";
+import { syncMembership } from "@/lib/membership";
 const VALID_LOCALES = ["en", "no", "sv"];
 const VALID_EMAIL_TYPES = ["welcome", "beta"];
 
@@ -143,6 +144,9 @@ export const POST = withAdmin("users.create", async (request, admin) => {
             { status: 500 },
         );
     }
+
+    // Whether Connect lists this account, from the tier and trial just set.
+    await syncMembership(user.uid);
 
     // An account created on the lifetime tier is a member of the golden
     // hundred, so it gets the ticket that says so (lib/goldenGrants.ts) and

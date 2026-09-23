@@ -9,6 +9,7 @@ import { LOCALES, LOCALE_LABELS } from "@/lib/content";
 import TemplatesTab from "./TemplatesTab";
 import DirectTab from "./DirectTab";
 import AutomationsTab from "./AutomationsTab";
+import SignupNudgePanel from "./SignupNudgePanel";
 
 interface Campaign {
     id: string;
@@ -210,7 +211,12 @@ export default function EmailPage() {
 
             {tab === "templates" && <TemplatesTab />}
             {tab === "direct" && <DirectTab />}
-            {tab === "automations" && <AutomationsTab />}
+            {tab === "automations" && (
+                <div className="flex flex-col gap-8">
+                    <SignupNudgePanel />
+                    <AutomationsTab />
+                </div>
+            )}
 
             {error && tab === "campaigns" && (
                 <Panel className="p-4 border-red-500/30">

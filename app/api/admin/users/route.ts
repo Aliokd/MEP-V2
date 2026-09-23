@@ -32,6 +32,8 @@ function shape(doc: FirebaseFirestore.DocumentSnapshot) {
         subscriptionStatus: d.billing?.subscriptionStatus || null,
         trialEndsAt: d.billing?.trialEndsAt || null,
         sanctioned: Boolean(d.sanction?.active),
+        // Typed an email into onboarding and left before the code or the card.
+        pendingSignup: d.signup?.method === "onboarding" && !d.signup?.verifiedAt,
         /** The golden ticket this account holds, filled in by withGoldenTickets. */
         golden: typeof d.golden?.ticket === "string" ? { slug: d.golden.ticket as string, number: null as number | null } : null,
     };

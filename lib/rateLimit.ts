@@ -76,6 +76,11 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // wrong tries regardless; this just keeps the lock from being the only
     // thing standing between a script and a million attempts.
     'onboarding-verify': { limit: 10, windowMs: 60_000 },
+    // The link in the day-after reminder email. One press opens the flow
+    // again; the token is 32 random bytes, so this is only against loops.
+    'onboarding-resume': { limit: 10, windowMs: 60_000 },
+    // Saving the step reached in onboarding, once per step change.
+    'onboarding-progress': { limit: 30, windowMs: 60_000 },
     // Billing routes: opening the customer portal and changing plan. Each
     // makes a Paddle API call on the caller's behalf; nobody needs more than
     // a few a minute.

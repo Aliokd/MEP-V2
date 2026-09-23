@@ -235,16 +235,8 @@ export async function POST(request: Request) {
                     answers,
                     signup: { method: "onboarding", source, verifiedAt: null, attribution },
                 }));
-                // The public slice, mirrored the way lib/userProfile.ts does
-                // for client-made accounts.
-                batch.set(adminDb.doc(`publicProfiles/${uid}`), {
-                    uid,
-                    name,
-                    photoURL: null,
-                    songwriterType: typeof answers.songwriter_type === "string" ? answers.songwriter_type : null,
-                    createdAt: now,
-                    lastActiveAt: now,
-                }, { merge: true });
+                // No public profile yet: someone who has only typed an address
+                // is not a member, and Connect lists members only (lib/membership.ts).
                 await batch.commit();
             }
         }

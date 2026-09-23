@@ -1347,8 +1347,8 @@
       "benefits_title": "What the ticket holds",
       "benefits": [
         "Lifetime access to every part of Veinote",
-        "{{invites}} invites for friends or family, each with a discount for life",
-        "Free entry to every Veinote event in the Nordics",
+        "{{invites}} invites for friends or family, each with a 30% discount forever",
+        "Discounts on Veinote local events",
         "The chance to organize and host events with us",
         "Perks and goodies along the way"
       ],
@@ -1370,6 +1370,27 @@
       "keep": "Everything you have written stays exactly where it is. Pick a plan and carry on where you left off, or let it end and come back any time.",
       "cta": "Choose a plan",
       "team": "The Veinote team"
+    },
+    "signup_nudge": {
+      "subject": "Your songwriting plan is still waiting",
+      "preheader": "Pick up where you left off. Your answers are saved.",
+      "greeting": "Hi,",
+      "greeting_named": "Hi {{name}},",
+      "body": "You started setting up Veinote and stopped just before the end. Your answers and your plan are saved, so you can pick up exactly where you left off.",
+      "benefits_title": "What is waiting for you",
+      "benefits": [
+        "A canvas for lyrics, voice memos and chords, all in one place",
+        "Rhyme and synonym tools in English, Norwegian and Swedish",
+        "Lessons from platinum-selling songwriters, and exercises that build real craft",
+        "Record demos straight from your laptop in the Demo studio",
+        "A community of songwriters to write with and share songs"
+      ],
+      "trial_line": "Your first {{days}} days are free. Nothing is charged until they end, and you can cancel any time before that.",
+      "cta": "Finish signing up",
+      "saved_note": "The button takes you back to the step you were on. It works once, for the next 7 days.",
+      "ignore": "Changed your mind? Ignore this email and nothing happens.",
+      "team": "The Veinote team",
+      "unsubscribe": "Stop reminders like this"
     }
   },
   "practice": {
@@ -2351,10 +2372,10 @@
       "checkout_success": "You're in.",
       "checkout_success_note": "Your {days} days start now.",
       "unavailable_title": "Payments are not available right now",
-      "unavailable_body": "You can carry on without a plan and pick one later from Settings. Nothing is charged today either way.",
-      "unavailable_cta": "Continue without a plan",
+      "unavailable_body": "Finish your account now. Your free days start as soon as you add a card, which you can do from the next screen once payments are available. Nothing is charged today.",
+      "unavailable_cta": "Finish my account",
       "opening_soon_title": "Card payments open in a few days",
-      "opening_soon_body": "Our payment provider is finishing the setup. Start your free days now and add a plan from Settings once payments open. Nothing is charged today either way."
+      "opening_soon_body": "Our payment provider is finishing the setup. Finish your account now and start your free days from the plans screen once card payments open. Nothing is charged today."
     },
     "verify": {
       "title": "One last thing",
@@ -2771,6 +2792,8 @@
     "sign_out": "Sign out",
     "help": "Questions? Write to",
     "opening": "Opening checkout...",
-    "unavailable": "Payments are not available right now. Write to contact@veinote.com and we will sort it out."
+    "unavailable": "Payments are not available right now. Write to contact@veinote.com and we will sort it out.",
+    "start_title": "Start your {days} days free",
+    "start_body": "Your account is ready. Choose a plan and add a card to start your free days. Nothing is charged until they end, and you can cancel any time before that."
   }
 }

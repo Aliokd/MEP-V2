@@ -64,6 +64,7 @@ function classify(doc: FirebaseFirestore.QueryDocumentSnapshot, now: number): Re
     });
     let skipReason: ReminderCandidate["skipReason"] = null;
     if (billing.trialReminderSentAt) skipReason = "sent";
+    else if (d.signup?.method === "onboarding" && !d.signup?.verifiedAt) skipReason = "not-trial";
     else if (billing.paddleSubscriptionId) skipReason = "card-trial";
     else if (ent.access !== "trial" || ent.paid) skipReason = "not-trial";
     else if (!d.email) skipReason = "no-email";

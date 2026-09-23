@@ -71,6 +71,12 @@ export interface PublicProfile {
      * here so the day a real one lands it appears without a code change.
      */
     bio: string | null;
+    /**
+     * On a trial, a plan or a grant right now. Written by the server only
+     * (lib/membership.ts; the rules keep it from clients), so an account
+     * that typed an email and left, or whose trial ran out, is not listed.
+     */
+    member: boolean;
 }
 
 
@@ -101,6 +107,8 @@ export function toPublicProfile(uid: string, data: Record<string, any>): PublicP
         verified: data.verified === true,
         bio: typeof data.bio === "string" && data.bio.trim() ? data.bio.trim() : null,
         discoverable: data.discoverable !== false,
+        member: data.member === true
+            && (typeof data.memberUntil !== "string" || Date.parse(data.memberUntil) > Date.now()),
         location: data.location && typeof data.location.lat === "number" && typeof data.location.lng === "number"
             ? {
                 cityId: String(data.location.cityId ?? ""),
@@ -126,7 +134,7 @@ export async function fetchLocatedProfiles(max = 500): Promise<PublicProfile[]> 
     const rows: PublicProfile[] = [];
     snap.forEach((d) => {
         const p = toPublicProfile(d.id, d.data());
-        if (p.location && p.name) rows.push(p);
+        if (p.location && p.name && p.member) rows.push(p);
     });
     return rows;
 }
@@ -218,6 +226,9 @@ export async function fetchPublicProfileRoster(
         if (!profile.name) return;
         // Opted out of being listed (Profile → public profile switch).
         if (!profile.discoverable) return;
+        // Not on a trial, a plan or a grant: an unfinished signup, or access
+        // that ran out. Connect is for the people actually here.
+        if (!profile.member) return;
         users.push(profile);
     });
 

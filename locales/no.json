@@ -1361,8 +1361,8 @@
       "benefits_title": "Dette gir billetten deg",
       "benefits": [
         "Livsvarig tilgang til hele Veinote",
-        "{{invites}} invitasjoner til venner eller familie, hver med rabatt for livet",
-        "Gratis inngang til alle Veinote-arrangementer i Norden",
+        "{{invites}} invitasjoner til venner eller familie, hver med 30 % rabatt for alltid",
+        "Rabatt på lokale Veinote-arrangementer",
         "Muligheten til å arrangere og holde arrangementer sammen med oss",
         "Frynsegoder og gaver underveis"
       ],
@@ -1370,6 +1370,27 @@
       "keep": "Vi tar personlig kontakt snart. Har du spørsmål før det, er det bare å svare på denne e-posten.",
       "signoff": "Med takk,",
       "team": "Grunnleggerne av Veinote"
+    },
+    "signup_nudge": {
+      "subject": "Låtskriverplanen din venter fortsatt",
+      "preheader": "Fortsett der du slapp. Svarene dine er lagret.",
+      "greeting": "Hei,",
+      "greeting_named": "Hei {{name}},",
+      "body": "Du begynte å sette opp Veinote og stoppet like før slutten. Svarene og planen din er lagret, så du kan fortsette akkurat der du slapp.",
+      "benefits_title": "Dette venter på deg",
+      "benefits": [
+        "En canvas for tekster, talememoer og akkorder, samlet på ett sted",
+        "Rim- og synonymverktøy på norsk, svensk og engelsk",
+        "Leksjoner fra platinaselgende låtskrivere, og øvelser som bygger ekte håndverk",
+        "Ta opp demoer rett fra laptopen i Demo studio",
+        "Et fellesskap av låtskrivere å skrive og dele låter med"
+      ],
+      "trial_line": "De første {{days}} dagene er gratis. Ingenting trekkes før de er over, og du kan avslutte når som helst før det.",
+      "cta": "Fullfør registreringen",
+      "saved_note": "Knappen tar deg tilbake til steget du var på. Den virker én gang, de neste 7 dagene.",
+      "ignore": "Har du ombestemt deg? Se bort fra denne e-posten, så skjer ingenting.",
+      "team": "Veinote-teamet",
+      "unsubscribe": "Stopp påminnelser som denne"
     }
   },
   "practice": {
@@ -2351,10 +2372,10 @@
       "checkout_success": "Du er inne.",
       "checkout_success_note": "De {days} dagene dine starter nå.",
       "unavailable_title": "Betaling er ikke tilgjengelig akkurat nå",
-      "unavailable_body": "Du kan fortsette uten en plan og velge en senere under Innstillinger. Ingenting belastes i dag uansett.",
-      "unavailable_cta": "Fortsett uten plan",
+      "unavailable_body": "Fullfør kontoen nå. De gratis dagene starter så snart du legger inn et kort, noe du kan gjøre fra neste skjerm når betaling er tilgjengelig. Ingenting trekkes i dag.",
+      "unavailable_cta": "Fullfør kontoen",
       "opening_soon_title": "Kortbetaling åpner om noen dager",
-      "opening_soon_body": "Betalingsleverandøren vår gjør ferdig oppsettet. Start gratisdagene dine nå, og legg til en plan under Innstillinger når betaling åpner. Ingenting belastes i dag uansett."
+      "opening_soon_body": "Betalingsleverandøren vår fullfører oppsettet. Fullfør kontoen nå og start de gratis dagene fra planoversikten når kortbetaling åpner. Ingenting trekkes i dag."
     },
     "verify": {
       "title": "Én siste ting",
@@ -2771,6 +2792,8 @@
     "sign_out": "Logg ut",
     "help": "Spørsmål? Skriv til",
     "opening": "Åpner kassen...",
-    "unavailable": "Betaling er ikke tilgjengelig akkurat nå. Skriv til contact@veinote.com, så ordner vi det."
+    "unavailable": "Betaling er ikke tilgjengelig akkurat nå. Skriv til contact@veinote.com, så ordner vi det.",
+    "start_title": "Start dine {days} gratis dager",
+    "start_body": "Kontoen din er klar. Velg en plan og legg inn et kort for å starte de gratis dagene. Ingenting trekkes før de er over, og du kan avslutte når som helst før det."
   }
 }

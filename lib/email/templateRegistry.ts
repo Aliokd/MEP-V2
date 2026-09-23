@@ -138,6 +138,16 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         variables: ["name", "code", "invites"],
     },
     {
+        id: "signup_nudge",
+        label: "Unfinished signup reminder",
+        whenSent:
+            "Automatically, a day after someone types their email into onboarding and leaves before adding a card. Once per account, never to anyone who opted out. Its button is a one-time link back to the step they stopped on. Switched and run from the Automations tab.",
+        keyPrefix: "signup_nudge",
+        fields: ["subject", "preheader", "greeting", "greeting_named", "body", "benefits_title", "benefits", "trial_line", "cta", "saved_note", "ignore", "team", "unsubscribe"],
+        listFields: ["benefits"],
+        variables: ["name", "days"],
+    },
+    {
         id: "trial_ending",
         label: "Trial ending reminder",
         whenSent:

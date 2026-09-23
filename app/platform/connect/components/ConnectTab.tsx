@@ -2470,20 +2470,13 @@ export default function ConnectTab() {
 
       <ConnectTabs
         active={activeTab}
-        // Rooms is open to everyone as a view: a non-member sees the locked
-        // section, which is the pitch. Business is Pro's alone; a press from
-        // anyone else opens the upgrade instead of an empty tab.
-        onChange={(tab) => {
-          if (tab === 'business' && businessLocked && !planLoading) {
-            setUpgradeOpen(true);
-            return;
-          }
-          setActiveTab(tab);
-        }}
-        locks={{
-          rooms: roomsLocked && !planLoading ? 'pro' : undefined,
-          business: businessLocked && !planLoading ? 'pro' : undefined,
-        }}
+        onChange={setActiveTab}
+        // Rooms and Business are being reworked, so neither opens for anyone:
+        // "Coming soon" on both tabs for every tier, not a Pro lock. A tier
+        // pill would promise that paying opens it, and right now nothing does.
+        // This is the only thing that sets the active tab, so the two views
+        // below are unreachable while the tabs are inert.
+        locks={{ rooms: 'soon', business: 'soon' }}
         t={t}
       />
 

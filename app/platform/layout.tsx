@@ -500,6 +500,15 @@ function PlatformLayoutInner({
         }
     }, [user, loading, blocked, router]);
 
+    // An account made at the onboarding email step that never finished the
+    // flow has not proven its address or started a trial. It goes back to
+    // onboarding, which picks up at the step it left (signup.lastStep).
+    useEffect(() => {
+        if (user && !plan.loading && plan.pendingSignup) {
+            router.replace('/onboarding');
+        }
+    }, [user, plan.loading, plan.pendingSignup, router]);
+
     // The welcome video now lives inside the onboarding guide as its first step —
     // see PlatformOnboarding, mounted at the bottom of this layout.
 
@@ -514,7 +523,7 @@ function PlatformLayoutInner({
 
     // The plan is waited for too: an expired account must never see the
     // canvas for a frame before the plans replace it.
-    if (loading || (user && plan.loading)) return (
+    if (loading || (user && plan.loading) || (user && plan.pendingSignup)) return (
         <div className="h-screen flex items-center justify-center bg-[#E4E4DF]">
             <div className="w-12 h-12 border-t-2 border-stone-900 rounded-full animate-spin" />
         </div>
@@ -524,9 +533,10 @@ function PlatformLayoutInner({
 
     if (!user) return null;
 
-    // The trial has run out, or the subscription lapsed, and no grant stands
-    // in. The plans, in place of everything, until the webhook says otherwise.
-    if (plan.access === 'expired') return <TrialEndedScreen />;
+    // No trial started (card never entered), the trial has run out, or the
+    // subscription lapsed, and no grant stands in. The plans, in place of
+    // everything, until the webhook says otherwise.
+    if (plan.access === 'expired' || plan.access === 'unpaid') return <TrialEndedScreen />;
 
     const firstName = (user.displayName || '').trim().split(' ')[0] || t('navigation.my_profile');
 
