@@ -5,7 +5,6 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebaseAuth';
 import { bindLocalStateToAccount } from '@/lib/storage';
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog';
-import { hasReplayConsent } from '@/lib/cookieConsent';
 
 interface AuthContextType {
     user: User | null;
@@ -149,40 +148,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             posthogIdentifiedRef.current = false;
         }
     }, [user, loading]);
-
-    useEffect(() => {
-        // Without this check the identify below still ran, creating Clarity's
-        // queue stub and pushing the user's uid, name and email into it before
-        // anyone answered the consent bar. The queue flushes the moment Clarity
-        // loads, so declining has to stop the queueing too, not just the script.
-        // Clarity's category is session recording, not analytics: since those
-        // became separate answers, someone can allow being counted while
-        // refusing to be recorded, and this queue belongs to the recorder.
-        if (!hasReplayConsent()) return;
-
-        if (user && typeof window !== 'undefined') {
-            try {
-                const clarity = (window as any).clarity;
-                if (typeof clarity === 'function') {
-                    clarity("identify", user.uid, {
-                        name: user.displayName || 'Active User',
-                        email: user.email || ''
-                    });
-                } else {
-                    // Queue call if script isn't fully loaded yet
-                    (window as any).clarity = (window as any).clarity || function() {
-                        ((window as any).clarity.q = (window as any).clarity.q || []).push(arguments);
-                    };
-                    (window as any).clarity("identify", user.uid, {
-                        name: user.displayName || 'Active User',
-                        email: user.email || ''
-                    });
-                }
-            } catch (err) {
-                console.error("Error identifying user in Clarity:", err);
-            }
-        }
-    }, [user]);
 
     return (
         <AuthContext.Provider value={{ user, loading, blocked }}>

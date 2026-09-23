@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { motion, useAnimationControls } from 'framer-motion';
-import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, getAdditionalUserInfo, signOut, type UserCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, getAdditionalUserInfo, signOut, type User, type UserCredential } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
 import { recordTermsAcceptance } from '@/lib/termsAcceptance';
+import { signInWithGoogle } from '@/lib/googleSignIn';
 import { clearOpenProject } from '@/lib/storage';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
@@ -78,8 +79,22 @@ function SignInPageInner() {
      * refused in advance. Signing in an account that already has a profile is
      * untouched — the wall is around new accounts, not existing songwriters.
      */
-    const completeGoogleSignIn = async (result: UserCredential) => {
+    const completeGoogleSignIn = async (result: UserCredential, isNewUser: boolean) => {
         const user = result.user;
+
+        // Signups open: nothing to gate, so nothing to wait for. A new account
+        // needs its profile before the platform reads it; a returning one goes
+        // straight on, and the profile check that used to sit here (a full
+        // Firestore round trip before the page could even start to change)
+        // runs behind the navigation instead.
+        if (SIGNUPS_OPEN) {
+            if (isNewUser) await createUserProfile(user, { locale: language });
+            else void settleReturningProfile(user);
+            clearOpenProject(user.uid);
+            router.push('/platform/create');
+            return;
+        }
+
         const profile = await getDoc(doc(db, "users", user.uid));
 
         // An invitee who chose "Continue with Google" here rather than in the
@@ -93,9 +108,8 @@ function SignInPageInner() {
             // has somehow lost its profile document is a repair job, not a
             // trespasser, and deleting its auth record would take its identity
             // with it — so that case is signed out and left alone.
-            const isNewAccount = getAdditionalUserInfo(result)?.isNewUser === true;
             try {
-                if (isNewAccount) await user.delete();
+                if (isNewUser) await user.delete();
                 else await signOut(auth);
             } catch {
                 await signOut(auth).catch(() => {});
@@ -120,13 +134,39 @@ function SignInPageInner() {
         router.push('/platform/create');
     };
 
+    /**
+     * A returning account's housekeeping, off the critical path: repair a
+     * missing profile (accounts that predate it, admin-made ones) and
+     * re-record terms acceptance when the version has moved. Best-effort.
+     */
+    const settleReturningProfile = async (user: User) => {
+        try {
+            const profile = await getDoc(doc(db, "users", user.uid));
+            if (!profile.exists()) await createUserProfile(user, { locale: language });
+            else await recordTermsAcceptance(user.uid);
+        } catch (err) {
+            console.warn('Profile check after Google sign-in failed:', err);
+        }
+    };
+
+    // The canvas is the heaviest page in the app and where every sign-in lands.
+    // Fetching it while the person is still on this page (and in Google's
+    // popup) is most of the wait gone by the time the credential comes back.
     useEffect(() => {
+        router.prefetch('/platform/create');
+    }, [router]);
+
+    useEffect(() => {
+        // Development never redirects (Google sign-in is simulated there, see
+        // lib/googleSignIn.ts), and on localhost the check would try to frame
+        // a veinote.com page the local policy blocks.
+        if (process.env.NODE_ENV !== 'production') return;
         const checkRedirectResult = async () => {
             try {
                 const result = await getRedirectResult(auth);
                 if (result) {
                     setIsLoading(true);
-                    await completeGoogleSignIn(result);
+                    await completeGoogleSignIn(result, getAdditionalUserInfo(result)?.isNewUser === true);
                 }
             } catch (err: any) {
                 console.error('Redirect sign-in error:', err);
@@ -208,20 +248,23 @@ function SignInPageInner() {
         setError('');
         setIsLoading(true);
         try {
-            await completeGoogleSignIn(await signInWithPopup(auth, googleProvider));
+            const { credential, isNewUser } = await signInWithGoogle();
+            await completeGoogleSignIn(credential, isNewUser);
         } catch (err: any) {
-            console.error('Google Sign-In error:', err);
-            if (
-                err.code === 'auth/popup-blocked' ||
-                err.code === 'auth/popup-closed-by-user' ||
-                err.code === 'auth/cancelled-popup-request'
-            ) {
+            if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+                // The person closed Google's window, or pressed twice. That is a
+                // choice, not a failure: no message, and no full-page redirect
+                // to Google, which used to follow and read as the app stalling.
+            } else if (err.code === 'auth/popup-blocked') {
+                // The browser refused the popup outright; the redirect is the
+                // only way through. It lands back here via getRedirectResult.
                 try {
                     await signInWithRedirect(auth, googleProvider);
                 } catch (redirectErr: any) {
                     handleAuthError(redirectErr);
                 }
             } else {
+                console.error('Google Sign-In error:', err);
                 handleAuthError(err);
             }
         } finally {

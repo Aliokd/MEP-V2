@@ -4,10 +4,11 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword, getAdditionalUserInfo, signInWithCustomToken, signInWithPopup, signOut, updateProfile, type User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithCustomToken, signOut, updateProfile, type User } from 'firebase/auth';
+import { signInWithGoogle } from '@/lib/googleSignIn';
 import { doc, getDoc } from 'firebase/firestore';
 import { CheckoutEventNames } from '@paddle/paddle-js';
-import { auth, db, googleProvider } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
 import { authedFetch } from '@/lib/authedFetch';
 import { rememberInvitePass, forgetInvitePass } from '@/lib/invitePass';
@@ -696,17 +697,16 @@ function OnboardingPageInner() {
         setAccountError('');
         setIsCreatingAccount(true);
         try {
-            const result = await signInWithPopup(auth, googleProvider);
+            const { credential: result, isNewUser } = await signInWithGoogle({ suggestedEmail: invite.email });
             const account = result.user;
             // The invitation attaches by email. A different Google address would
             // make an account with no song in it — undone, and said plainly.
             if ((account.email || '').toLowerCase() !== invite.email.toLowerCase()) {
-                const isNew = getAdditionalUserInfo(result)?.isNewUser === true;
-                try { if (isNew) await account.delete(); else await signOut(auth); } catch { await signOut(auth).catch(() => {}); }
+                try { if (isNewUser) await account.delete(); else await signOut(auth); } catch { await signOut(auth).catch(() => {}); }
                 setAccountError(t('onboarding.invite.error_wrong_google').replace('{email}', invite.email));
                 return;
             }
-            if (getAdditionalUserInfo(result)?.isNewUser) {
+            if (isNewUser) {
                 await finishInviteSignup(account);
             } else {
                 // Already a Veinote account after all — nothing to create, just in.
