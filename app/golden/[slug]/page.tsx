@@ -102,7 +102,7 @@ export default async function GoldenTicketPage({ params }: { params: Params }) {
             <ProgramSections />
 
             {/* The ticket */}
-            <section className="px-6 md:px-[10%] pb-10">
+            <section className="px-6 md:px-[10%] pb-20 md:pb-28">
                 <div className="max-w-2xl mx-auto">
                     <TakeTicket slug={ticket.slug} status={ticket.status} price={await proYearlyPrice()} holderName={ticket.name} />
                 </div>

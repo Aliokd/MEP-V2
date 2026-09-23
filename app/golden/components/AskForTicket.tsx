@@ -65,7 +65,7 @@ export default function AskForTicket({ number, price }: { number: number; price:
 
     return (
         <ActivationCard
-            title={GOLDEN.activate.requestTitle.replace('{number}', String(number))}
+            title={GOLDEN.activate.requestTitle}
             price={price}
             onSave={ask}
         />

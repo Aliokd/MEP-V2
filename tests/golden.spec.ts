@@ -83,7 +83,7 @@ test.describe('Golden ticket page', () => {
     // They sit above the benefits list: the list of what a ticket holds means
     // more once the thing it buys has been shown.
     const showcaseTop = (await page.getByRole('heading', { name: 'Live collab', exact: false }).boundingBox())!.y;
-    const benefitsTop = (await page.getByText('What you get, exclusively').boundingBox())!.y;
+    const benefitsTop = (await page.getByText('Your benefits as a golden member').boundingBox())!.y;
     expect(showcaseTop).toBeLessThan(benefitsTop);
   });
 

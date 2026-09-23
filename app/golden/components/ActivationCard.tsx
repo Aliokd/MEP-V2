@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import { GOLDEN } from '../content';
@@ -10,11 +10,12 @@ import { ACTIVATE_ANCHOR, ACTIVATE_EVENT } from '../activateEvent';
 /**
  * The card a ticket page ends on.
  *
- * Closed, it says one thing: what the ticket is worth. Pressing Activate
- * plays out what the ticket does to that number. The price is struck
- * through, a zero takes its place, and the ticket unfolds into what it holds
- * and the two fields that take it. The order is the argument: the value, then
- * the price falling away, then what you get for nothing, then your name.
+ * It plays in two acts. Scrolling it into view shows what the ticket does
+ * to the price: a year of Veinote Pro is struck through and a zero takes its
+ * place, with Activate still waiting underneath. Pressing Activate unfolds
+ * the rest: the title, what the ticket holds, and the two fields that take
+ * it. The order is the argument: the value falling away first, on sight,
+ * then what you get for nothing, then your name.
  *
  * It owns only the reveal and the two fields. What saving means belongs to
  * the page: a named ticket is claimed, a free one is asked for. `onSave`
@@ -43,7 +44,22 @@ export default function ActivationCard({
     onSave: (values: { name: string; email: string }) => Promise<string | null>;
 }) {
     const reduce = useReducedMotion();
+    // Two acts. `priced`: the card has come into view and the price has been
+    // struck through to zero. `open`: Activate was pressed and the benefits,
+    // the fields and Save have come in.
+    const [priced, setPriced] = useState(false);
     const [open, setOpen] = useState(false);
+    // When the reveal starts, in seconds after the press. Long when the price
+    // is still falling (it goes first), short when it fell a while ago.
+    const [bodyBase, setBodyBase] = useState(1.0);
+    const pricedAt = useRef<number | null>(null);
+    // Activate has been pressed at some point, so the card comes back open
+    // when it is scrolled back to, not just priced.
+    const activated = useRef(false);
+    // This opening came from a press. Only then does the page follow the
+    // reveal down and the cursor go to a field; an opening that happened
+    // because the visitor scrolled back does neither.
+    const follow = useRef(false);
     const [name, setName] = useState(initialName);
     const [email, setEmail] = useState('');
     const [busy, setBusy] = useState(false);
@@ -53,22 +69,72 @@ export default function ActivationCard({
     const cardRef = useRef<HTMLDivElement>(null);
     const a = GOLDEN.activate;
 
-    // The hero's golden Activate sends the visitor here and asks the card to
-    // open. It opens once it is properly in view, not on the press, so the
-    // price is struck through while they are watching rather than off screen
-    // during the scroll.
+    /**
+     * Opens the card: the reveal after the price. If the price has not fallen
+     * yet (the hero's Activate brings the card in and opens it in one go), it
+     * falls now and the reveal waits for it; if it fell a while ago, the
+     * reveal starts almost at once.
+     */
+    const openCard = useCallback((pressed: boolean) => {
+        const now = Date.now();
+        if (pricedAt.current === null) {
+            pricedAt.current = now;
+            setPriced(true);
+        }
+        const elapsed = (now - pricedAt.current) / 1000;
+        setBodyBase(Math.min(1.0, Math.max(0.15, 1.15 - elapsed)));
+        activated.current = true;
+        follow.current = pressed;
+        setOpen(true);
+    }, []);
+
+    /**
+     * Back to how the card first looks: full price, Activate, nothing below.
+     * What was typed stays in state, so it is still there when it reopens.
+     */
+    const closeCard = useCallback(() => {
+        pricedAt.current = null;
+        follow.current = false;
+        setPriced(false);
+        setOpen(false);
+        setError('');
+    }, []);
+
+    // Coming into view strikes the price through. The hero's golden Activate
+    // also arms the card to open when it arrives, so that press ends with the
+    // whole card revealed rather than with a second Activate to find.
+    //
+    // Scrolling back up until the card has gone off the bottom of the screen
+    // closes it again, and coming back down plays it again: the price falls,
+    // and if Activate was pressed before, the rest opens after it. Only off
+    // the bottom: the page goes on below the card, and reading on past it is
+    // not a reason to take it apart.
     useEffect(() => {
         const card = cardRef.current;
         if (!card) return;
         let armed = false;
         const io = new IntersectionObserver(
             ([entry]) => {
-                if (armed && entry.isIntersecting) {
+                if (!entry.isIntersecting) {
+                    const bottom = entry.rootBounds?.bottom ?? window.innerHeight;
+                    if (entry.boundingClientRect.top >= bottom && pricedAt.current !== null) closeCard();
+                    return;
+                }
+                if (entry.intersectionRatio < 0.6) return;
+                const replay = pricedAt.current === null;
+                if (replay) {
+                    pricedAt.current = Date.now();
+                    setPriced(true);
+                }
+                if (armed) {
                     armed = false;
-                    setOpen(true);
+                    openCard(true);
+                } else if (replay && activated.current) {
+                    openCard(false);
                 }
             },
-            { threshold: 0.6 },
+            // 0 for leaving entirely, 0.6 for being properly in view.
+            { threshold: [0, 0.6] },
         );
         io.observe(card);
         const onActivate = () => {
@@ -78,7 +144,7 @@ export default function ActivationCard({
             const visible = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
             if (visible >= r.height * 0.6) {
                 armed = false;
-                setOpen(true);
+                openCard(true);
             }
         };
         window.addEventListener(ACTIVATE_EVENT, onActivate);
@@ -86,7 +152,7 @@ export default function ActivationCard({
             io.disconnect();
             window.removeEventListener(ACTIVATE_EVENT, onActivate);
         };
-    }, []);
+    }, [openCard, closeCard]);
 
     // Durations collapse to nothing for anyone who asked for less motion; the
     // card still opens, it just arrives rather than performs.
@@ -101,19 +167,22 @@ export default function ActivationCard({
      */
     const revealEnd = () => {
         const card = cardRef.current;
-        if (!card) return;
+        // Also called when the body finishes closing, off screen; and after
+        // a reopen from scrolling, which the visitor is already doing.
+        if (!card || !follow.current) return;
+        follow.current = false;
         const overflow = card.getBoundingClientRect().bottom + 40 - window.innerHeight;
         if (overflow > 0) window.scrollBy({ top: overflow, behavior: reduce ? 'auto' : 'smooth' });
     };
 
     // Once the fields are in, the cursor goes to the first one still empty.
     useEffect(() => {
-        if (!open) return;
+        if (!open || !follow.current) return;
         const id = window.setTimeout(() => {
             (initialName.trim() ? emailRef : nameRef).current?.focus({ preventScroll: true });
-        }, reduce ? 0 : 1500);
+        }, reduce ? 0 : (bodyBase + 0.6) * 1000);
         return () => window.clearTimeout(id);
-    }, [open, initialName, reduce]);
+    }, [open, initialName, reduce, bodyBase]);
 
     const save = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -160,7 +229,7 @@ export default function ActivationCard({
                         <motion.button
                             key="activate"
                             type="button"
-                            onClick={() => setOpen(true)}
+                            onClick={() => openCard(true)}
                             exit={{ opacity: 0, scale: 0.94 }}
                             transition={{ duration: t(0.2) }}
                             // The hero's golden Activate, smaller: the same
@@ -192,28 +261,29 @@ export default function ActivationCard({
             <motion.div layout className="mt-4 flex flex-wrap items-end justify-center gap-x-6 gap-y-1">
                 <motion.span
                     layout
-                    animate={{ opacity: open ? 0.45 : 1 }}
-                    transition={{ duration: t(0.4), delay: t(open ? 0.55 : 0) }}
+                    animate={{ opacity: priced ? 0.45 : 1 }}
+                    transition={{ duration: t(0.4), delay: t(priced ? 0.55 : 0) }}
                     className="relative inline-flex items-end"
                 >
                     <Price amount={price.amount} currency={price.currency} />
                     <motion.span
                         aria-hidden="true"
                         initial={false}
-                        animate={{ scaleX: open ? 1 : 0 }}
-                        transition={{ duration: t(0.45), delay: t(open ? 0.25 : 0), ease: EASE }}
+                        animate={{ scaleX: priced ? 1 : 0 }}
+                        transition={{ duration: t(0.45), delay: t(priced ? 0.25 : 0), ease: EASE }}
                         style={{ originX: 0 }}
                         className="absolute left-[-4%] right-[-4%] top-[52%] h-[5px] md:h-[6px] rounded-full bg-stone-900"
                     />
-                    {open && <span className="sr-only">, now</span>}
+                    {priced && <span className="sr-only">, now</span>}
                 </motion.span>
 
                 <AnimatePresence>
-                    {open && (
+                    {priced && (
                         <motion.span
                             key="zero"
                             initial={{ opacity: 0, x: 24, scale: 0.9 }}
                             animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: 24, scale: 0.9, transition: { duration: t(0.25) } }}
                             transition={{ duration: t(0.5), delay: t(0.7), ease: EASE }}
                             className="inline-flex items-end"
                             style={{ color: '#1c1917', textShadow: `0 0 36px ${GOLD.bright}80` }}
@@ -230,23 +300,24 @@ export default function ActivationCard({
                         key="body"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
-                        transition={{ duration: t(0.6), delay: t(1.0), ease: EASE }}
+                        exit={{ opacity: 0, height: 0, transition: { duration: t(0.35), ease: EASE } }}
+                        transition={{ duration: t(0.6), delay: t(bodyBase), ease: EASE }}
                         // Height is final here even though the fields are still
                         // fading in: they already take their space.
                         onAnimationComplete={revealEnd}
                         className="overflow-hidden"
                     >
                         <ul className="mx-auto mt-9 max-w-md space-y-2.5 text-left">
-                            {GOLDEN.benefits.map((line, i) => (
+                            {GOLDEN.benefits.map(({ id, text }, i) => (
                                 <motion.li
-                                    key={line}
+                                    key={id}
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: t(0.4), delay: t(1.1 + i * 0.08), ease: EASE }}
+                                    transition={{ duration: t(0.4), delay: t(bodyBase + 0.1 + i * 0.08), ease: EASE }}
                                     className="flex items-start gap-3 text-stone-700 leading-relaxed"
                                 >
                                     <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: GOLD.deep }} />
-                                    <span>{line}</span>
+                                    <span>{text}</span>
                                 </motion.li>
                             ))}
                         </ul>
@@ -261,7 +332,7 @@ export default function ActivationCard({
                             <motion.label
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: t(0.4), delay: t(1.55), ease: EASE }}
+                                transition={{ duration: t(0.4), delay: t(bodyBase + 0.55), ease: EASE }}
                                 className="block"
                             >
                                 <span className="sr-only">{a.nameLabel}</span>
@@ -278,7 +349,7 @@ export default function ActivationCard({
                             <motion.label
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: t(0.4), delay: t(1.65), ease: EASE }}
+                                transition={{ duration: t(0.4), delay: t(bodyBase + 0.65), ease: EASE }}
                                 className="block"
                             >
                                 <span className="sr-only">{a.emailLabel}</span>
@@ -296,7 +367,7 @@ export default function ActivationCard({
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: t(0.4), delay: t(1.8), ease: EASE }}
+                                transition={{ duration: t(0.4), delay: t(bodyBase + 0.8), ease: EASE }}
                                 className="flex justify-center pt-4"
                             >
                                 {/* Gold like both Activates: the same act, finished. */}

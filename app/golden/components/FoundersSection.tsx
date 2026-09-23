@@ -38,11 +38,11 @@ export default async function FoundersSection() {
     const cards = GOLDEN.founders.map((founder) => ({ founder, post: latestBy(posts, founder.match) }));
 
     return (
-        <section className="px-6 md:px-[10%] pb-16 md:pb-24">
-            <div className="border-t border-stone-400/20 pt-14">
-                <h2 className="text-2xl md:text-3xl tracking-tight">{GOLDEN.foundersTitle}</h2>
+        <section className="px-6 md:px-[10%] pb-20 md:pb-36">
+            <div className="border-t border-stone-400/20 pt-16 md:pt-24">
+                <h2 className="text-center text-3xl md:text-5xl tracking-tight">{GOLDEN.foundersTitle}</h2>
 
-                <div className="mt-8 grid items-stretch gap-4 md:gap-5 sm:grid-cols-2">
+                <div className="mt-10 grid items-stretch gap-4 md:mt-16 md:gap-5 sm:grid-cols-2">
                     {cards.map(({ founder, post }) => {
                         // The cover is the only part that differs in height, so
                         // both cards reserve the same band whether or not there

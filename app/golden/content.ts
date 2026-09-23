@@ -27,7 +27,7 @@ export const GOLDEN = {
         /** The headline over a free ticket's first screen. */
         heading: 'Golden ticket',
         eyebrow: 'Still available',
-        body: 'We believe songwriters build the best tools for songwriters, and that is why we are building Veinote. A hundred of them get a golden ticket, chosen by hand. We would love you to be part of this mission.',
+        body: 'We believe songwriters build the best tools for songwriters, and that is why we are building Veinote. A hundred of you get a golden ticket, chosen by hand. We would love you to be part of this mission.',
         askTitle: 'Want this ticket?',
         askBody: 'Leave your email and a line about what you write. We read every one, and we reach out to the songwriters we want beside us.',
         askAbout: 'One line about you (optional)',
@@ -61,7 +61,7 @@ export const GOLDEN = {
         /** After the press, on a ticket with a name on it. */
         activeTitle: 'Active',
         /** After the press, on a free ticket: nobody is handed one from a page anyone can open. */
-        requestTitle: 'Ask for ticket {number}',
+        requestTitle: 'Unlocking full Veinote access',
         nameLabel: 'Your name',
         emailLabel: 'Your email',
         save: 'Save',
@@ -73,17 +73,20 @@ export const GOLDEN = {
     heroTitle: 'Hey {name}, you have been chosen to be part of Veinote.',
     heroBody: 'We are building the home of human songwriting, and we are opening it first to a hundred people whose work we admire. You are one of them.',
 
-    benefitsTitle: 'What you get, exclusively',
+    benefitsTitle: 'Your benefits as a golden member',
+    /** The sixth card after the five benefits: the list is not closed. */
+    benefitsMore: 'And more to come',
+    /**
+     * The five things a ticket holds, each drawn as a card with its own icon
+     * (ProgramSections) and listed again when the activation card opens. The
+     * id picks the icon; the order is the order on the page.
+     */
     benefits: [
-        'Lifetime access to every part of Veinote',
-        `${GOLDEN_INVITES_PER_TICKET} exclusive invites for friends or family, each with a 30% discount forever`,
-        'Discounts on Veinote local events',
-        'The ability to organize and host events with us',
-        'Perks and goodies along the way',
-    ],
-    perks: [
-        { id: 'tee', title: 'Your own Veinote T-shirt' },
-        { id: 'vouchers', title: `${GOLDEN_INVITES_PER_TICKET} Veinote Vouchers` },
+        { id: 'lifetime', text: 'Lifetime access to every part of Veinote' },
+        { id: 'vouchers', text: `${GOLDEN_INVITES_PER_TICKET} exclusive invites for friends or family, each with a 30% discount forever` },
+        { id: 'events', text: 'Discounts on Veinote local events' },
+        { id: 'host', text: 'The ability to organize and host events with us' },
+        { id: 'perks', text: 'Perks and goodies along the way' },
     ],
 
     /**

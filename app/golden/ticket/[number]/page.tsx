@@ -104,7 +104,7 @@ export default async function FreeTicketPage({ params }: { params: Params }) {
             </div>
 
             {/* The ask */}
-            <section className="px-6 md:px-[10%] pb-10">
+            <section className="px-6 md:px-[10%] pb-20 md:pb-28">
                 <div className="max-w-2xl mx-auto">
                     <AskForTicket number={n} price={price} />
                 </div>

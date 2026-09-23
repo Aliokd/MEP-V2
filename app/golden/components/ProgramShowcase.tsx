@@ -205,7 +205,7 @@ export default function ProgramShowcase() {
     // plain 24px gutter with a capped container gives the paragraph room
     // without the card giving any width back.
     return (
-        <section className="px-6 pb-16 pt-10 md:pb-24 md:pt-16">
+        <section className="px-6 pb-20 pt-10 md:pb-36 md:pt-16">
             {/* Wide enough to hold a 716px card and a readable column beside it.
                 The cards carry a negative side margin of their own, so the
                 artwork can still reach past the gutter on a phone the way it
