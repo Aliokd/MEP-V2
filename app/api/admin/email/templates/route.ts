@@ -14,6 +14,7 @@ import { songCommentedEmail, songLikedEmail } from "@/lib/email/templates/engage
 import { trialEndingEmail } from "@/lib/email/templates/trialEnding";
 import { signupNudgeEmail } from "@/lib/email/templates/signupNudge";
 import { TRIAL_DAYS } from "@/lib/paddle/config";
+import { goldenEmailExtras } from "@/lib/email/goldenEmailExtras";
 import { goldenTicketEmail } from "@/lib/email/templates/goldenTicket";
 import { waitlistEmail } from "@/lib/email/templates/waitlist";
 import { GOLDEN_INVITES_PER_TICKET, GOLDEN_TICKETS_TOTAL } from "@/lib/uiFlags";
@@ -30,7 +31,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://veinote.com";
  * The beta email's password is a visible dummy — a preview must never carry a
  * real credential, and one that looked real would invite pasting it somewhere.
  */
-function renderSample(id: string, locale: EmailLocale, overrides: Awaited<ReturnType<typeof getCopyOverrides>>) {
+async function renderSample(id: string, locale: EmailLocale, overrides: Awaited<ReturnType<typeof getCopyOverrides>>) {
     switch (id) {
         case "beta_welcome":
             return betaWelcomeEmail(
@@ -105,7 +106,14 @@ function renderSample(id: string, locale: EmailLocale, overrides: Awaited<Return
                     code: "GOLD-XXXX-XXXX",
                     redeemUrl: `${APP_URL}/onboarding?from=golden&golden=GOLD-XXXX-XXXX`,
                     pageUrl: `${APP_URL}/golden/alex`,
-                    invites: 5,
+                    invites: GOLDEN_INVITES_PER_TICKET,
+                    number: 31,
+                    // The real price and the real founders' posts, so the
+                    // preview is the email a member would get today.
+                    ...(await goldenEmailExtras(APP_URL, locale)),
+                    // This host's own copy of the pictures, so a preview on a
+                    // dev server shows ones that are not deployed yet.
+                    assetOrigin: APP_URL,
                 },
                 overrides,
             );
@@ -128,7 +136,7 @@ export const GET = withAdmin("announcements.read", async (request) => {
     const previewLocale = resolveLocale(url.searchParams.get("locale"));
     const overrides = await getCopyOverrides();
 
-    const templates = EMAIL_TEMPLATES.map((template) => {
+    const templates = await Promise.all(EMAIL_TEMPLATES.map(async (template) => {
         const fields = template.fields.map((field) => {
             const key = templateKey(template, field);
             const isList = template.listFields?.includes(field);
@@ -149,7 +157,7 @@ export const GET = withAdmin("announcements.read", async (request) => {
             return { field, key, isList: Boolean(isList), shipped, edited };
         });
 
-        const sample = renderSample(template.id, previewLocale, overrides);
+        const sample = await renderSample(template.id, previewLocale, overrides);
 
         return {
             ...template,
@@ -157,7 +165,7 @@ export const GET = withAdmin("announcements.read", async (request) => {
             preview: { subject: sample.subject, html: sample.html },
             edited: fields.some((f) => Object.values(f.edited).some((v) => v?.trim())),
         };
-    });
+    }));
 
     return NextResponse.json({ templates, previewLocale });
 });
@@ -177,7 +185,7 @@ export const POST = withAdmin("announcements.send", async (request, admin) => {
         return NextResponse.json({ error: "Your admin record has no email address" }, { status: 400 });
     }
 
-    const sample = renderSample(template.id, resolveLocale(locale), await getCopyOverrides());
+    const sample = await renderSample(template.id, resolveLocale(locale), await getCopyOverrides());
 
     try {
         await sendMail({

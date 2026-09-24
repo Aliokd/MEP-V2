@@ -18,7 +18,7 @@ import { GOLDEN } from '../content';
  * already allows (proxy.ts, frame-src); the lesson embeds got there first.
  */
 
-const VIDEO_ID = 'OxcCYrurvFc';
+const VIDEO_ID = GOLDEN.videoId;
 
 /**
  * The loop and its first frame, cut from the film already cropped to the

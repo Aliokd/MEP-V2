@@ -3,6 +3,7 @@ import { withAdmin } from "@/lib/admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { auditContext, writeAudit } from "@/lib/admin/audit";
 import { sendMail } from "@/lib/email/send";
+import { goldenEmailExtras } from "@/lib/email/goldenEmailExtras";
 import { goldenTicketEmail } from "@/lib/email/templates/goldenTicket";
 import { resolveLocale } from "@/lib/email/locale";
 import { getCopyOverrides } from "@/lib/siteCopy";
@@ -49,6 +50,7 @@ export const POST = withAdmin("golden.write", async (request, admin, ctx: Ctx) =
     const note = typeof body.note === "string" ? body.note.trim().slice(0, 2000) : null;
     const mode = ticket.status === "redeemed" ? "granted" : "invite";
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://veinote.com";
+    const { price, founders } = await goldenEmailExtras(appUrl, locale);
     const { subject, html, text } = goldenTicketEmail(
         locale,
         {
@@ -57,6 +59,9 @@ export const POST = withAdmin("golden.write", async (request, admin, ctx: Ctx) =
             redeemUrl: `${appUrl}${goldenLandingPath(ticket.code)}`,
             pageUrl: `${appUrl}/golden/${ticket.slug}`,
             invites: ticket.invites,
+            number: ticket.number,
+            price,
+            founders,
             mode,
             personalNote: note,
             subject: subjectOverride,

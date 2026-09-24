@@ -148,7 +148,7 @@ export const GOLDEN = {
      */
     showcase: {
         collab: {
-            title: 'Write it together, in the same canvas',
+            title: 'Live collabs with other songwriters',
             body: 'Open a song with someone and you are both inside it: the words down one side, the takes down the other, their cursor moving while you type. No files going back and forth, no two versions to reconcile afterwards.',
         },
         tools: {
@@ -186,6 +186,8 @@ export const GOLDEN = {
     togetherTitle: 'We bring human writers together',
 
     videoTitle: 'See Veinote in action',
+    /** The film on YouTube: the page's player, and the golden ticket email's link. */
+    videoId: 'OxcCYrurvFc',
     /** On the still, before the player is loaded. */
     videoPlay: 'Play the video',
 

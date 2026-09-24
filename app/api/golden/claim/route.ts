@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { rateLimitGuard } from "@/lib/rateLimit";
 import { sendMail, isMailDryRun } from "@/lib/email/send";
+import { goldenEmailExtras } from "@/lib/email/goldenEmailExtras";
 import { goldenTicketEmail } from "@/lib/email/templates/goldenTicket";
 import { resolveLocale } from "@/lib/email/locale";
 import { getCopyOverrides } from "@/lib/siteCopy";
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
     if (!ticket) return NextResponse.json({ error: "not-found" }, { status: 404 });
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://veinote.com";
+    const { price, founders } = await goldenEmailExtras(appUrl, locale);
     const { subject, html, text } = goldenTicketEmail(
         locale,
         {
@@ -120,6 +122,9 @@ export async function POST(request: Request) {
             redeemUrl: `${appUrl}${goldenLandingPath(ticket.code)}`,
             pageUrl: `${appUrl}/golden/${ticket.slug}`,
             invites: ticket.invites,
+            number: ticket.number,
+            price,
+            founders,
         },
         await getCopyOverrides(),
     );
