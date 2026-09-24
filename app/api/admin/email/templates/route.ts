@@ -15,6 +15,8 @@ import { trialEndingEmail } from "@/lib/email/templates/trialEnding";
 import { signupNudgeEmail } from "@/lib/email/templates/signupNudge";
 import { TRIAL_DAYS } from "@/lib/paddle/config";
 import { goldenTicketEmail } from "@/lib/email/templates/goldenTicket";
+import { waitlistEmail } from "@/lib/email/templates/waitlist";
+import { GOLDEN_INVITES_PER_TICKET, GOLDEN_TICKETS_TOTAL } from "@/lib/uiFlags";
 import { LOCALES } from "@/lib/content";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +107,14 @@ function renderSample(id: string, locale: EmailLocale, overrides: Awaited<Return
                     pageUrl: `${APP_URL}/golden/alex`,
                     invites: 5,
                 },
+                overrides,
+            );
+        case "waitlist":
+            // Nothing stands in here: the email has no one in it, only the
+            // program, so the preview is the email as the list would get it.
+            return waitlistEmail(
+                locale,
+                { goldenUrl: `${APP_URL}/golden`, total: GOLDEN_TICKETS_TOTAL, invites: GOLDEN_INVITES_PER_TICKET },
                 overrides,
             );
         default:

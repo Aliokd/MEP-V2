@@ -138,6 +138,42 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         variables: ["name", "code", "invites"],
     },
     {
+        id: "waitlist",
+        label: "Waitlist email",
+        whenSent:
+            "To the waiting list, to bring them into the Golden program. The words are the free-ticket Golden page's, in the same order, and both buttons open the wall of tickets. Nothing sends it automatically yet. It is a copy of the page's words, so editing one does not change the other.",
+        keyPrefix: "waitlist",
+        fields: [
+            "subject",
+            "preheader",
+            "badge",
+            "heading",
+            "eyebrow",
+            "intro",
+            "cta",
+            "collab_title",
+            "collab_body",
+            "tools_title",
+            "tools_body",
+            "publish_title",
+            "publish_body",
+            "science_title",
+            "science_body",
+            "benefits_title",
+            "benefits",
+            "benefits_more",
+            "ask_title",
+            "ask_body",
+            "signoff",
+            "team",
+            // The footer line saying why they got it: the default names an
+            // account, which most of the waiting list does not have.
+            "reason",
+        ],
+        listFields: ["benefits"],
+        variables: ["total", "invites"],
+    },
+    {
         id: "signup_nudge",
         label: "Unfinished signup reminder",
         whenSent:

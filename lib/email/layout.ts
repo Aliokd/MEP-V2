@@ -3,6 +3,12 @@ import "server-only";
 export interface RenderLayoutOptions {
     preheader: string;
     bodyHtml: string;
+    /**
+     * Why this person is getting the email, in the footer. Defaults to account
+     * activity, which is wrong for anyone written to before they have an
+     * account (the waiting list), so those emails say their own reason.
+     */
+    footerNote?: string;
 }
 
 const ACCENT = "#86BE7F";
@@ -13,7 +19,8 @@ const BORDER = "#E7E5DE";
 const MUTED = "#78716C";
 
 // Table-based layout for email-client compatibility. Inline styles only — no external CSS.
-export function renderLayout({ preheader, bodyHtml }: RenderLayoutOptions): string {
+export function renderLayout({ preheader, bodyHtml, footerNote }: RenderLayoutOptions): string {
+    const reason = footerNote?.trim() || "You're receiving this email because of activity on your Veinote account.";
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -40,7 +47,7 @@ export function renderLayout({ preheader, bodyHtml }: RenderLayoutOptions): stri
         <tr>
           <td align="center" style="padding-top:32px;">
             <p style="margin:0; font-size:12px; color:${MUTED}; line-height:1.6;">
-              You're receiving this email because of activity on your Veinote account.<br />
+              ${escapeHtml(reason)}<br />
               Need help? Reply to this email or reach us at <a href="mailto:support@veinote.com" style="color:${MUTED};">support@veinote.com</a>.
             </p>
           </td>

@@ -1344,6 +1344,37 @@
       "cta": "Välj en plan",
       "team": "Veinote-teamet"
     },
+    "waitlist": {
+      "subject": "Gyllene biljetter till Veinote, utvalda för hand",
+      "preheader": "Vi tror att låtskrivare bygger de bästa verktygen för låtskrivare, och det är därför vi bygger Veinote.",
+      "badge": "Golden program",
+      "heading": "Gyllene biljett",
+      "eyebrow": "{{total}} låtskrivare, utvalda för hand. En biljett var, för livet.",
+      "intro": "Vi tror att låtskrivare bygger de bästa verktygen för låtskrivare, och det är därför vi bygger Veinote. Hundra av er får en gyllene biljett, utvalda för hand. Vi vill gärna ha med dig på det här.",
+      "cta": "Se de gyllene biljetterna",
+      "collab_title": "Skriv tillsammans, i samma canvas",
+      "collab_body": "Öppna en låt med någon så är ni båda inne i den: texten på ena sidan, tagningarna på den andra, deras markör som rör sig medan du skriver. Inga filer fram och tillbaka, inga två versioner att jämka ihop efteråt.",
+      "tools_title": "En canvas för hela låten",
+      "tools_body": "Skriv en rad, sjung idén innan den försvinner, fota en vers ur ett anteckningsblock. Ord, röstanteckningar och inspelningar samlas på ett ställe, med rim och en demostudio ett klick bort i stället för i en annan app.",
+      "publish_title": "Låten förblir din",
+      "publish_body": "Gör klart den och dela den som en länk vem som helst kan öppna, utan konto och utan app att installera. Din text, din inspelning, ditt namn på den, och inget du behöver skriva över till oss för att få ut den.",
+      "science_title": "Med stöd i forskningen",
+      "science_body": "Att skriva är inte en färdighet utan flera på en gång, och var och en av dem är en egen del av hjärnan som arbetar. Veinote räknar minuterna du lägger på det, och en hel vecka av dem gör alltihop gyllene.",
+      "benefits_title": "Dina förmåner som gyllene medlem",
+      "benefits": [
+        "Livstidstillgång till hela Veinote",
+        "{{invites}} exklusiva inbjudningar till vänner eller familj, var och en med 30 % rabatt för alltid",
+        "Rabatt på lokala Veinote-evenemang",
+        "Möjligheten att arrangera och hålla evenemang tillsammans med oss",
+        "Förmåner och gåvor på vägen"
+      ],
+      "benefits_more": "Och mer är på väg",
+      "ask_title": "Vill du ha en biljett?",
+      "ask_body": "Öppna en som fortfarande är ledig och lämna din mejladress och en rad om vad du skriver. Vi läser varenda en, och vi hör av oss till de låtskrivare vi vill ha vid vår sida.",
+      "signoff": "Med tack,",
+      "team": "Veinotes grundare",
+      "reason": "Du får det här mejlet eftersom du skrev upp dig på Veinotes väntelista."
+    },
     "golden_ticket": {
       "subject": "Din gyllene biljett till Veinote",
       "preheader": "Du är utvald. Här är biljetten som öppnar Veinote för livet.",

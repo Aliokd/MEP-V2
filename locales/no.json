@@ -1344,6 +1344,37 @@
       "cta": "Velg en plan",
       "team": "Veinote-teamet"
     },
+    "waitlist": {
+      "subject": "Gylne billetter til Veinote, valgt ut for hånd",
+      "preheader": "Vi tror låtskrivere lager de beste verktøyene for låtskrivere, og derfor bygger vi Veinote.",
+      "badge": "Golden program",
+      "heading": "Gyllen billett",
+      "eyebrow": "{{total}} låtskrivere, valgt ut for hånd. Én billett hver, for livet.",
+      "intro": "Vi tror låtskrivere lager de beste verktøyene for låtskrivere, og derfor bygger vi Veinote. Hundre av dere får en gyllen billett, valgt ut for hånd. Vi vil gjerne ha deg med på dette.",
+      "cta": "Se de gylne billettene",
+      "collab_title": "Skriv sammen, i samme canvas",
+      "collab_body": "Åpne en sang sammen med noen, så er dere begge inne i den: teksten på den ene siden, opptakene på den andre, og markøren deres som beveger seg mens du skriver. Ingen filer frem og tilbake, ingen to versjoner å slå sammen etterpå.",
+      "tools_title": "Én canvas for hele sangen",
+      "tools_body": "Skriv en linje, syng idéen før den forsvinner, ta bilde av et vers i notatboka. Ord, lydnotater og opptak holder seg på ett sted, med rim og et demostudio ett klikk unna i stedet for i en annen app.",
+      "publish_title": "Sangen forblir din",
+      "publish_body": "Gjør den ferdig, og del den som en lenke alle kan åpne, uten konto og uten app å installere. Din tekst, ditt opptak, ditt navn på den, og ingenting du må gi fra deg til oss for å få den ut.",
+      "science_title": "Støttet av forskning",
+      "science_body": "Å skrive er ikke én ferdighet, men flere samtidig, og hver av dem er en egen del av hjernen som jobber. Veinote teller minuttene du bruker på det, og en hel uke med dem gjør det hele gyllent.",
+      "benefits_title": "Dine fordeler som gyllent medlem",
+      "benefits": [
+        "Livsvarig tilgang til hele Veinote",
+        "{{invites}} eksklusive invitasjoner til venner eller familie, hver med 30 % rabatt for alltid",
+        "Rabatt på lokale Veinote-arrangementer",
+        "Muligheten til å arrangere og holde arrangementer sammen med oss",
+        "Frynsegoder og gaver underveis"
+      ],
+      "benefits_more": "Og mer kommer",
+      "ask_title": "Vil du ha en billett?",
+      "ask_body": "Åpne en som fortsatt er ledig, og legg igjen e-posten din og en linje om hva du skriver. Vi leser hver eneste en, og vi tar kontakt med låtskriverne vi vil ha ved vår side.",
+      "signoff": "Med takk,",
+      "team": "Grunnleggerne av Veinote",
+      "reason": "Du får denne e-posten fordi du meldte deg på ventelisten til Veinote."
+    },
     "golden_ticket": {
       "subject": "Din gyllne billett til Veinote",
       "preheader": "Du er valgt ut. Her er billetten som åpner Veinote for livet.",

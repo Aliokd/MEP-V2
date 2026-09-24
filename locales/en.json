@@ -1335,6 +1335,37 @@
       "ignore": "If you didn't sign up for Veinote, you can ignore this email. Nothing happens without the code.",
       "team": "The Veinote team"
     },
+    "waitlist": {
+      "subject": "Golden tickets to Veinote, chosen by hand",
+      "preheader": "We believe songwriters build the best tools for songwriters, and that is why we are building Veinote.",
+      "badge": "Golden program",
+      "heading": "Golden ticket",
+      "eyebrow": "{{total}} songwriters, chosen by hand. One ticket each, for life.",
+      "intro": "We believe songwriters build the best tools for songwriters, and that is why we are building Veinote. A hundred of you get a golden ticket, chosen by hand. We would love you to be part of this mission.",
+      "cta": "See the golden tickets",
+      "collab_title": "Write it together, in the same canvas",
+      "collab_body": "Open a song with someone and you are both inside it: the words down one side, the takes down the other, their cursor moving while you type. No files going back and forth, no two versions to reconcile afterwards.",
+      "tools_title": "One canvas for the whole song",
+      "tools_body": "Type a line, sing the idea before it goes, photograph a verse off a notebook page. Words, voice notes and recordings stay in one place, with rhymes and a demo studio a click away instead of in another app.",
+      "publish_title": "The song stays yours",
+      "publish_body": "Finish it, then share it as a link anyone can open, with no account and no app to install. Your lyrics, your recording, your name on it, and nothing signed away to us to put it out.",
+      "science_title": "Backed by science",
+      "science_body": "Writing is not one skill but several at once, and each of them is a different part of the mind doing work. Veinote counts the minutes you spend on it, and a full week of them turns the whole thing gold.",
+      "benefits_title": "Your benefits as a golden member",
+      "benefits": [
+        "Lifetime access to every part of Veinote",
+        "{{invites}} exclusive invites for friends or family, each with a 30% discount forever",
+        "Discounts on Veinote local events",
+        "The ability to organize and host events with us",
+        "Perks and goodies along the way"
+      ],
+      "benefits_more": "And more to come",
+      "ask_title": "Want a ticket?",
+      "ask_body": "Open one that is still available, then leave your email and a line about what you write. We read every one, and we reach out to the songwriters we want beside us.",
+      "signoff": "With gratitude,",
+      "team": "The Veinote founders",
+      "reason": "You're receiving this email because you joined the Veinote waiting list."
+    },
     "golden_ticket": {
       "subject": "Your golden ticket to Veinote",
       "preheader": "You were chosen. Here is the ticket that opens Veinote for life.",
