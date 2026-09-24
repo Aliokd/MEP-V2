@@ -125,12 +125,26 @@ function buildCsp(nonce: string): string {
             // conversions, stats.g for GA4 when Google signals is on. It is the
             // form Google's own CSP guide gives for both tags.
             'https://*.g.doubleclick.net',
+            // Not under .g.: the Ads tag's conversion collector (/ccm/s/collect)
+            // lives on ad.doubleclick.net. Missing, every conversion from a
+            // visitor who allowed ad measurement was refused in their browser
+            // (found with a consenting headless run, 2026-09-24).
+            'https://ad.doubleclick.net',
             'https://pagead2.googlesyndication.com',
             // Meta Pixel (lib/metaPixel.ts), same marketing consent row. Events
             // are posted to www.facebook.com/tr by beacon or fetch, and
             // fbevents.js fetches its pixel config from connect.facebook.net.
             'https://www.facebook.com',
             'https://connect.facebook.net',
+            // The pixel's Conversions API Gateway, set up in Meta Events Manager
+            // and run by Stape: fbevents.js reads these hosts from the pixel's
+            // config and posts the same events to them as a server-side copy
+            // that ad blockers cannot drop. Named exactly, never *.a.run.app,
+            // which would admit every Cloud Run app on the internet. If the
+            // gateway is moved or rebuilt, its new host shows up as a
+            // connect-src violation in a consenting session, and goes here.
+            'https://capig.stape.cc',
+            'https://capig-denis-93800-kdw3w5dgoa-ew.a.run.app',
             // PostHog (lib/posthog.ts). The wildcard covers both regions and
             // both roles: ingestion (eu/us.i.posthog.com) and the asset host the
             // SDK pulls remote config from (eu/us-assets.i.posthog.com). Getting
