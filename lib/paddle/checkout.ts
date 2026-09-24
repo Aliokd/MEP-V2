@@ -8,6 +8,7 @@ import {
     type PaddleEventData,
 } from '@paddle/paddle-js';
 import { reportPurchaseConversion } from '@/lib/googleAds';
+import { reportMetaCheckout } from '@/lib/metaPixel';
 import {
     BILLING_PERIODS,
     FALLBACK_PRICING,
@@ -40,14 +41,21 @@ type PaddleListener = (event: PaddleEventData) => void;
 const listeners = new Set<PaddleListener>();
 
 function dispatch(event: PaddleEventData) {
-    // Ad conversion, here rather than in any one paywall: this is the single
-    // point every checkout's events pass through. A no-op unless the visitor
-    // allowed ad measurement (lib/googleAds.ts checks).
+    // Ad conversions, here rather than in any one paywall: this is the single
+    // point every checkout's events pass through. Each reporter is a no-op
+    // unless the visitor allowed ad measurement, and each is isolated so one
+    // failing cannot stop the other or the listeners below.
     if (event.name === CheckoutEventNames.CHECKOUT_COMPLETED && event.data?.transaction_id) {
+        const { transaction_id: transactionId, totals, currency_code: currency } = event.data;
         try {
-            reportPurchaseConversion(event.data.transaction_id);
+            reportPurchaseConversion(transactionId);
         } catch (err) {
-            console.error('Ad conversion report failed:', err);
+            console.error('Google Ads conversion report failed:', err);
+        }
+        try {
+            reportMetaCheckout({ transactionId, total: Number(totals?.total) || 0, currency });
+        } catch (err) {
+            console.error('Meta conversion report failed:', err);
         }
     }
 

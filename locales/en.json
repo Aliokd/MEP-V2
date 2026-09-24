@@ -1891,7 +1891,7 @@
     "page_intro": "Veinote uses cookies and similar storage to keep you signed in, to understand how the app is used, and, only if you allow it, to record how a page was used. Your answer stays on this device, and you can change it here at any time.",
     "page_footnote": "More about what we collect and why is in the",
     "cat_marketing_title": "Ad measurement",
-    "cat_marketing_body": "Lets Google Ads tell us which of our ads led you here, so we spend on the ones that work. It is only used to measure which ads lead to sign-ups, never to show you ads based on your visit. Veinote itself has no ads.",
+    "cat_marketing_body": "Lets Google Ads and Meta (Facebook and Instagram) tell us which of our ads led you here, so we spend on the ones that work. These companies may also use this, under their own terms, to decide how they show ads. Veinote itself has no ads.",
     "current_allowed": "Allowed on this browser besides necessary cookies:"
   },
   "home": {
@@ -1932,7 +1932,7 @@
       "bio_2": "His career includes chart success, international releases, platinum-selling projects, and decades of experience as a songwriter, producer, performer, and educator."
     },
     "ai": {
-      "title": "... and intuitive tools"
+      "title": "Tools built by songwriters"
     },
     "faq": {
       "title": "Q&A",

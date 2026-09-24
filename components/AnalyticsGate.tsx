@@ -10,6 +10,7 @@ import {
 } from '@/lib/posthog';
 import { initFirebaseAnalytics } from '@/lib/firebaseAuth';
 import { initGoogleAds, disableGoogleAds } from '@/lib/googleAds';
+import { initMetaPixel, disableMetaPixel } from '@/lib/metaPixel';
 import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '@/lib/cookieConsent';
 
 /**
@@ -33,9 +34,10 @@ import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '
  * removed on 2026-09-20 (PostHog replay covers it, and one recorder of
  * what people type is enough to keep an eye on).
  *
- * Marketing is a third, independent category: it starts the Google Ads tag
- * (lib/googleAds.ts), which goes to a different company for a different
- * purpose, so it neither needs nor implies the other two.
+ * Marketing is a third, independent category: it starts the ad-measurement
+ * tags, Google Ads (lib/googleAds.ts) and the Meta Pixel (lib/metaPixel.ts),
+ * which go to different companies for a different purpose, so it neither needs
+ * nor implies the other two.
  *
  * Renders nothing: the whole job is the effects.
  */
@@ -74,8 +76,13 @@ export default function AnalyticsGate() {
     }, [recorded]);
 
     useEffect(() => {
-        if (marketed) initGoogleAds();
-        else disableGoogleAds();
+        if (marketed) {
+            initGoogleAds();
+            initMetaPixel();
+        } else {
+            disableGoogleAds();
+            disableMetaPixel();
+        }
     }, [marketed]);
 
     return null;

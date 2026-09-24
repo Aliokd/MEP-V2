@@ -33,8 +33,16 @@ const CONSENT_KEY = 'veinote-cookie-consent';
  * who have no stored answer and meet the full question on their first visit.
  * Asking everyone already here to also allow advertising would be badgering
  * for no measurement at all.
+ *
+ * v4 -> v5 (2026-09-24): the Meta Pixel joins Google Ads under the same row.
+ * A v4 yes to ad measurement was a yes to Google, with a promise that the data
+ * would not be used to show ads based on the visit; Meta offers no switch to
+ * keep that promise, so the row now says what Meta does instead, and a v4 yes
+ * cannot stand in for agreeing to it. Exactly those answers are asked again.
+ * Everyone else carries over untouched: a v4 no is still a no (the wider ask
+ * only makes it more so), and v2/v3 answers never allowed marketing at all.
  */
-const CONSENT_VERSION = 4;
+const CONSENT_VERSION = 5;
 
 /** Fired on the window so analytics can start (or stay off) without a reload. */
 export const CONSENT_EVENT = 'veinote-cookie-consent-changed';
@@ -46,8 +54,9 @@ export const CONSENT_EVENT = 'veinote-cookie-consent-changed';
  * being counted, being recorded, and ad measurement. Marketing was left out
  * while Veinote set no advertising cookies, because a row nobody can act on
  * teaches people the whole panel is decoration. The Google Ads tag
- * (lib/googleAds.ts) made it a real thing, so it is a row now. Veinote still
- * shows no ads; this is about measuring the ads Veinote runs elsewhere.
+ * (lib/googleAds.ts) made it a real thing, so it is a row now, and the Meta
+ * Pixel (lib/metaPixel.ts) shares it. Veinote still shows no ads; this is
+ * about measuring the ads Veinote runs elsewhere.
  *
  * Analytics and replay are split because the privacy policy splits them: being
  * counted and having a session played back are different asks, and someone can
@@ -64,7 +73,7 @@ export interface ConsentState {
     analytics: boolean;
     /** PostHog session replay. */
     replay: boolean;
-    /** Google Ads conversion measurement (lib/googleAds.ts). */
+    /** Ad measurement: Google Ads (lib/googleAds.ts) and the Meta Pixel (lib/metaPixel.ts). */
     marketing: boolean;
 }
 
@@ -153,8 +162,13 @@ export function readConsent(): ConsentState | null {
             return isStaleDecline(NECESSARY_ONLY, parsed.at) ? null : NECESSARY_ONLY;
         }
 
-        // v3 never asked about marketing, so it reads as a no (see CONSENT_VERSION).
-        if (parsed?.v !== 3 && parsed?.v !== CONSENT_VERSION) return null;
+        // A v4 yes to ad measurement covered Google only: asked again (see
+        // CONSENT_VERSION). Returning null brings the dialog back once.
+        if (parsed?.v === 4 && parsed.marketing) return null;
+
+        // v3 never asked about marketing and a v4 answer that reaches here said
+        // no to it, so both read as a no.
+        if (parsed?.v !== 3 && parsed?.v !== 4 && parsed?.v !== CONSENT_VERSION) return null;
         const state = normalizeConsent({
             analytics: !!parsed.analytics,
             replay: !!parsed.replay,

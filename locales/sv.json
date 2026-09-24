@@ -1891,7 +1891,7 @@
     "page_intro": "Veinote använder kakor och liknande lagring för att hålla dig inloggad, för att förstå hur appen används och, bara om du tillåter det, för att spela in hur en sida användes. Ditt val stannar på den här enheten och du kan ändra det här när som helst.",
     "page_footnote": "Mer om vad vi samlar in och varför finns i",
     "cat_marketing_title": "Annonsmätning",
-    "cat_marketing_body": "Låter Google Ads berätta för oss vilken av våra annonser som ledde dig hit, så att vi lägger pengarna på de som fungerar. Det används bara för att mäta vilka annonser som leder till registreringar, aldrig för att visa dig annonser utifrån ditt besök. Veinote självt har inga annonser.",
+    "cat_marketing_body": "Låter Google Ads och Meta (Facebook och Instagram) berätta för oss vilken av våra annonser som ledde dig hit, så att vi lägger pengarna på de som fungerar. Företagen kan också använda detta, enligt sina egna villkor, för att bestämma hur de visar annonser. Veinote självt har inga annonser.",
     "current_allowed": "Tillåtet i den här webbläsaren utöver nödvändiga kakor:"
   },
   "home": {
@@ -1932,7 +1932,7 @@
       "bio_2": "Hans karriär rymmer listframgångar, internationella släpp, platinasäljande projekt och decennier som låtskrivare, producent, artist och pedagog."
     },
     "ai": {
-      "title": "... och intuitiva verktyg"
+      "title": "Verktyg byggda av låtskrivare"
     },
     "faq": {
       "title": "Frågor och svar",

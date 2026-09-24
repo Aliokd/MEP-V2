@@ -126,6 +126,11 @@ function buildCsp(nonce: string): string {
             // form Google's own CSP guide gives for both tags.
             'https://*.g.doubleclick.net',
             'https://pagead2.googlesyndication.com',
+            // Meta Pixel (lib/metaPixel.ts), same marketing consent row. Events
+            // are posted to www.facebook.com/tr by beacon or fetch, and
+            // fbevents.js fetches its pixel config from connect.facebook.net.
+            'https://www.facebook.com',
+            'https://connect.facebook.net',
             // PostHog (lib/posthog.ts). The wildcard covers both regions and
             // both roles: ingestion (eu/us.i.posthog.com) and the asset host the
             // SDK pulls remote config from (eu/us-assets.i.posthog.com). Getting

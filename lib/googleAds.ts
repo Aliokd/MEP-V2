@@ -11,10 +11,10 @@
  * This is Google's "basic" Consent Mode: nothing loads until there is a yes,
  * and when it loads the consent signals it sends match that yes exactly.
  * ad_storage and ad_user_data are granted because measuring a conversion is
- * the thing that was agreed to. ad_personalization stays denied: remarketing
- * (showing Veinote ads to people because they visited) is a wider ask than the
- * panel makes, and granting it would mean the panel's description was wrong.
- * Widening it is a consent-copy change and a CONSENT_VERSION bump, not a flag.
+ * the thing that was agreed to. ad_personalization stays denied: Google is
+ * the one ad platform that lets us refuse remarketing (showing Veinote ads to
+ * people because they visited), so we do. The Meta Pixel has no equivalent,
+ * which is why the consent row describes the platforms' own use of the data.
  *
  * Coexists with Firebase Analytics, which drives the same gtag.js and the same
  * window.dataLayer: whichever arrives first inserts the script and the other

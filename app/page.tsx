@@ -198,6 +198,8 @@ const BlobsSection = () => {
     );
 };
 
+// Off for now (see the section list in HomePage); kept so it can come back as one line.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const UrgencySection = () => {
     const { t, language } = useLanguage();
     const sectionRef = useRef<HTMLElement>(null);
@@ -663,11 +665,17 @@ export default function HomePage() {
     return (
         <div className="overflow-x-clip bg-[#E6E3DB] min-h-screen">
             <HeroSection />
-            <UrgencySection />
+            {/* The tools, straight after the hero: what you get is the first
+                thing below the promise. It used to close the founder section as
+                "... and intuitive tools"; standing on its own now, it has its
+                own title. */}
+            <AISection />
+            {/* The offer (UrgencySection) is off for now. The component stays
+                below, so bringing it back is putting this line back:
+                <UrgencySection /> */}
             <YellowBanner />
             <BlobsSection />
             <DarkSection />
-            <AISection />
             <FAQSection />
             <NewFooter />
         </div>
