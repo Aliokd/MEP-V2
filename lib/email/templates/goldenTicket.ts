@@ -92,7 +92,7 @@ const TICKET_TINT = "#FFFBF0";
  * its own copy by address, so a file replaced under the same name keeps
  * showing the old one; a new version makes it a new address.
  */
-const ASSET_VERSION = 2;
+const ASSET_VERSION = 3;
 
 const SHOWCASE = ["collab", "tools", "publish", "science"] as const;
 const BENEFIT_ICONS = ["lifetime", "vouchers", "events", "host", "perks"] as const;
@@ -133,6 +133,15 @@ function picture(src: string, alt: string, href?: string): string {
 function sectionTitle(text: string): string {
     return `<p style="margin:0 0 20px; font-size:24px; line-height:1.25; font-weight:500; letter-spacing:-0.01em; text-align:center; color:${emailColors.INK};">${escapeHtml(text)}</p>`;
 }
+
+/**
+ * The two card grids (benefits, founders). Cells sit 10px apart by table
+ * border-spacing, which also puts 10px outside the first and last column; the
+ * table is widened by those 20px and pulled 10px left so the cards line up
+ * with the pictures' edges. A client without calc() keeps width="100%" and
+ * the cards end 20px short on the right, which is the whole of the cost.
+ */
+const GRID_STYLE = "border-collapse:separate; border-spacing:10px; width:calc(100% + 20px); margin:0 -10px;";
 
 const divider = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:40px 0;"><tr>
   <td style="border-top:1px solid ${emailColors.BORDER}; font-size:0; line-height:0;">&nbsp;</td>
@@ -230,7 +239,7 @@ export function goldenTicketEmail(
     ];
     const benefitRows: string[] = [];
     for (let i = 0; i < cells.length; i += 2) benefitRows.push(`<tr>${cells[i]}${cells[i + 1] ?? `<td width="50%"></td>`}</tr>`);
-    const benefitsHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="10" style="border-collapse:separate; border-spacing:10px; margin:0 -10px;">${benefitRows.join("")}</table>`;
+    const benefitsHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="10" style="${GRID_STYLE}">${benefitRows.join("")}</table>`;
 
     const founderCell = ({ role, title, url, imageUrl }: GoldenEmailFounder) => {
         const cover = imageUrl
@@ -249,7 +258,7 @@ export function goldenTicketEmail(
     const foundersHtml = founders.length
         ? `${divider}
       ${sectionTitle(foundersTitle)}
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="10" style="border-collapse:separate; border-spacing:10px; margin:0 -10px;"><tr>${founders
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="10" style="${GRID_STYLE}"><tr>${founders
           .slice(0, 2)
           .map(founderCell)
           .join("")}</tr></table>`
@@ -343,5 +352,5 @@ export function goldenTicketEmail(
         team,
     ].join("\n");
 
-    return { subject, html: renderLayout({ preheader, bodyHtml }), text };
+    return { subject, html: renderLayout({ preheader, bodyHtml, fullBleedOnMobile: true }), text };
 }

@@ -9,6 +9,17 @@ export interface RenderLayoutOptions {
      * account (the waiting list), so those emails say their own reason.
      */
     footerNote?: string;
+    /**
+     * On a phone, drop the white card and its beige surround: the email goes
+     * white edge to edge with a 20px margin. A card inside a 16px gutter with
+     * 40px of padding left a 375px screen about 260px of content, which the
+     * golden ticket email's pictures and card grids cannot spare.
+     *
+     * A media query in <style>, since a width cannot be asked for inline. Gmail
+     * (web and its apps, for Gmail accounts), Apple Mail and iOS honour it;
+     * a client that ignores <style> keeps the card, which still reads fine.
+     */
+    fullBleedOnMobile?: boolean;
 }
 
 const ACCENT = "#86BE7F";
@@ -19,20 +30,32 @@ const BORDER = "#E7E5DE";
 const MUTED = "#78716C";
 
 // Table-based layout for email-client compatibility. Inline styles only — no external CSS.
-export function renderLayout({ preheader, bodyHtml, footerNote }: RenderLayoutOptions): string {
+export function renderLayout({ preheader, bodyHtml, footerNote, fullBleedOnMobile = false }: RenderLayoutOptions): string {
     const reason = footerNote?.trim() || "You're receiving this email because of activity on your Veinote account.";
     return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Veinote</title>
+<title>Veinote</title>${
+        fullBleedOnMobile
+            ? `
+<style>
+  @media only screen and (max-width: 600px) {
+    .vn-bg { background-color: ${CARD} !important; }
+    .vn-outer { padding: 28px 0 32px !important; }
+    .vn-card { border: 0 !important; border-radius: 0 !important; padding: 12px 20px 8px !important; }
+    .vn-foot { padding: 24px 20px 0 !important; }
+  }
+</style>`
+            : ""
+    }
 </head>
-<body style="margin:0; padding:0; background-color:${BG}; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<body class="vn-bg" style="margin:0; padding:0; background-color:${BG}; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <span style="display:none; font-size:1px; color:${BG}; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">${escapeHtml(preheader)}</span>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${BG};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="vn-bg" style="background-color:${BG};">
   <tr>
-    <td align="center" style="padding:40px 16px;">
+    <td align="center" class="vn-outer" style="padding:40px 16px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
         <tr>
           <td align="center" style="padding-bottom:32px;">
@@ -40,12 +63,12 @@ export function renderLayout({ preheader, bodyHtml, footerNote }: RenderLayoutOp
           </td>
         </tr>
         <tr>
-          <td style="background-color:${CARD}; border:1px solid ${BORDER}; border-radius:20px; padding:40px;">
+          <td class="vn-card" style="background-color:${CARD}; border:1px solid ${BORDER}; border-radius:20px; padding:40px;">
             ${bodyHtml}
           </td>
         </tr>
         <tr>
-          <td align="center" style="padding-top:32px;">
+          <td align="center" class="vn-foot" style="padding-top:32px;">
             <p style="margin:0; font-size:12px; color:${MUTED}; line-height:1.6;">
               ${escapeHtml(reason)}<br />
               Need help? Reply to this email or reach us at <a href="mailto:support@veinote.com" style="color:${MUTED};">support@veinote.com</a>.

@@ -39,9 +39,15 @@ const BASE = args[0]?.startsWith("http") ? args.shift() : "http://localhost:3000
 const ONLY = args.length ? args : null;
 
 const OUT = path.join(process.cwd(), "public", "assets", "email", "golden");
-// Shown at 440px in the email. 600 is sharp enough on a phone's high-density
-// screen without doubling the file, which a GIF feels far more than a JPEG.
-const WIDTH = 600;
+// Shown at 440px in the email, so 880 is what a retina screen needs to draw
+// it sharp; at 600 it was visibly soft. gifsicle's lossy pass (below) is what
+// makes that affordable.
+const WIDTH = Number(process.env.GIF_WIDTH || 880);
+// Recorded at twice the size and scaled down, so small UI text stays crisp.
+// Done with CSS zoom on a window twice as large, not a device pixel ratio:
+// Chrome's screencast captures in CSS pixels whatever the ratio, so a 2x
+// ratio came back as a 1x frame. Zoom keeps the 1280px layout, drawn larger.
+const ZOOM = Number(process.env.GIF_ZOOM || 2);
 const FPS = Number(process.env.GIF_FPS || 10);
 // Played faster than the page. The page's demos are paced for someone
 // watching; an email is scrolled past, and a 16 second loop both reads as
@@ -51,7 +57,7 @@ const SPEED = Number(process.env.GIF_SPEED || 1.5);
 const RECORD_SECONDS = Number(process.env.GIF_RECORD || 36);
 const MIN_LOOP_SECONDS = 3;
 const MAX_SECONDS = 9;
-const COLOURS = 128;
+const COLOURS = 256;
 // Each demo opens on an empty card and draws itself in. The loop starts once
 // it has, so the first frame, the one Outlook shows as a still, has something
 // on it.
@@ -59,14 +65,41 @@ const START_SECONDS = Number(process.env.GIF_START || 2);
 
 // `start`: seconds in, once the card has drawn itself (see START_SECONDS).
 // The golden mind has no empty opening; its first frame is the grey brain at
-// 0%, which is where its loop begins and ends. `colours`: the tools demo
-// crosses a notebook photo and a textured ground, and gets fewer to stay light.
+// 0%, which is where its loop begins and ends.
+//
+// `ground`: the golden mind card is white at 30% on the page (CARD_BG in
+// ProgramShowcase), which reads as a tint only over the page's beige. The
+// email is white, so it is recorded in the colour that 30% white over
+// #E6E3DB comes to, #EEEBE6, and looks in the inbox as it does on the page.
 const CARDS = [
     { id: "collab", selector: '[data-showcase-card="collab"] > div > div' },
-    { id: "tools", selector: '[data-showcase-card="tools"] > div > div', colours: 80 },
+    { id: "tools", selector: '[data-showcase-card="tools"] > div > div' },
     { id: "publish", selector: '[data-showcase-card="publish"] > div > div' },
-    { id: "science", selector: '[data-showcase-card="golden-mind"] > div > div', start: 0.2 },
+    { id: "science", selector: '[data-showcase-card="golden-mind"] > div > div', start: 0.2, ground: "#EEEBE6" },
 ];
+
+/**
+ * gifsicle (https://www.lcdf.org/gifsicle/), from GIFSICLE or PATH. Not a
+ * project dependency, since nothing at build or run time needs it; install it
+ * anywhere, e.g. `npm install --prefix <somewhere> gifsicle` and point GIFSICLE
+ * at node_modules/gifsicle/vendor/gifsicle.exe. Without it the GIFs come out
+ * about twice as heavy, and the run says so.
+ */
+function findGifsicle() {
+    const candidates = [process.env.GIFSICLE, "gifsicle"].filter(Boolean);
+    for (const bin of candidates) {
+        try {
+            execFileSync(bin, ["--version"], { stdio: "ignore" });
+            return bin;
+        } catch {
+            /* next */
+        }
+    }
+    console.warn("gifsicle not found: GIFs will be about twice as heavy. Set GIFSICLE to its path.");
+    return null;
+}
+const GIFSICLE = findGifsicle();
+const LOSSY = Number(process.env.GIF_LOSSY || 40);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,26 +113,36 @@ async function dismissConsent(page) {
 
 /** Records the card's region for RECORD_SECONDS; returns timestamped PNG frames. */
 async function record(browser, url, card, dir) {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+    // 800px wide: the sections stack there and the card keeps its full 716px,
+    // and a smaller window is less for software rendering to paint.
+    const page = await browser.newPage({ viewport: { width: 800 * ZOOM, height: 720 * ZOOM }, deviceScaleFactor: 1 });
     await page.goto(url, { waitUntil: "networkidle", timeout: 120_000 });
     await dismissConsent(page);
     // Same white ground as the stills, so the rounded corners sit on the
     // email card rather than on a square of the page's beige.
     await page.addStyleTag({ content: "html, body, body > div, .min-h-screen { background: #FFFFFF !important; }" });
+    await page.evaluate((z) => { document.documentElement.style.zoom = String(z); }, ZOOM);
+    await sleep(800);
 
     // Everything else that animates goes, above all the globe: with no GPU its
     // WebGL is drawn in software, which starves the page's timers and slows
     // the demo being recorded, so the GIF came out slower than the page plays.
     // Only the card being recorded keeps running.
     const target = page.locator(card.selector).last();
-    await target.evaluate((keep) => {
+    await target.evaluate((keep, ground) => {
         document.querySelectorAll("canvas, video, iframe").forEach((el) => {
             if (!keep.contains(el)) el.remove();
         });
-        document.querySelectorAll("[data-showcase-card]").forEach((el) => {
-            if (!el.contains(keep)) el.style.visibility = "hidden";
-        });
-    });
+        // Nothing but the card is painted: at twice the size, software
+        // rendering of the whole page slowed the demo and dropped frames.
+        const style = document.createElement("style");
+        style.textContent = "body * { visibility: hidden !important; } [data-rec-keep], [data-rec-keep] * { visibility: visible !important; } *, *::before, *::after { backdrop-filter: none !important; }";
+        keep.setAttribute("data-rec-keep", "");
+        document.head.appendChild(style);
+        // A card whose ground is see-through on the page is given the colour
+        // it shows there, since behind it here is white, not the page's beige.
+        if (ground && keep.firstElementChild) keep.firstElementChild.style.backgroundColor = ground;
+    }, card.ground ?? null);
 
     const cdp = await page.context().newCDPSession(page);
     const frames = [];
@@ -111,7 +154,7 @@ async function record(browser, url, card, dir) {
     // Scrolled into the middle of the screen in one jump, which is what starts
     // the demo, and recorded from that moment.
     await target.evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
-    await cdp.send("Page.startScreencast", { format: "png", maxWidth: 1280, maxHeight: 900, everyNthFrame: 1 });
+    await cdp.send("Page.startScreencast", { format: "png", maxWidth: 800 * ZOOM, maxHeight: 720 * ZOOM, everyNthFrame: 1 });
     await sleep(RECORD_SECONDS * 1000);
     await cdp.send("Page.stopScreencast");
     const box = await target.boundingBox();
@@ -173,7 +216,7 @@ await mkdir(OUT, { recursive: true });
 const free = await fetch(`${BASE}/golden`).then((r) => r.text());
 const number = (free.match(/href="\/golden\/ticket\/(\d+)"/) || [])[1] || "99";
 const url = `${BASE}/golden/ticket/${number}`;
-const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
+const browser = await chromium.launch();
 
 for (const card of CARDS.filter((c) => !ONLY || ONLY.includes(c.id))) {
     const work = path.join(os.tmpdir(), `golden-gif-${card.id}`);
@@ -201,14 +244,19 @@ for (const card of CARDS.filter((c) => !ONLY || ONLY.includes(c.id))) {
     execFileSync("ffmpeg", [
         "-y", "-loglevel", "error", "-framerate", String(FPS), "-start_number", String(loop.start + 1),
         "-i", path.join(steady, "s%05d.png"), "-frames:v", String(frames),
-        "-vf", `split[a][b];[a]palettegen=max_colors=${card.colours ?? COLOURS}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`,
+        "-vf", `split[a][b];[a]palettegen=max_colors=${card.colours ?? COLOURS}:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle`,
         "-loop", "0", file,
     ]);
+    // The lossy pass: gifsicle nudges pixels between frames so more of each
+    // frame repeats the one before, roughly halving the file with no visible
+    // change at this size. Full colour and no dither pattern above, because
+    // this is where the weight comes off instead.
+    if (GIFSICLE) execFileSync(GIFSICLE, ["-O3", `--lossy=${LOSSY}`, "--batch", file]);
     const size = (await stat(file)).size;
     console.log(
         `${card.id}: ${count} raw frames, loop ${(frames / FPS).toFixed(1)}s ${loop.looped ? "(seamless)" : "(cut, no return found)"}, ${Math.round(size / 1024)} KB`,
     );
-    await rm(work, { recursive: true, force: true });
+    if (!process.env.GIF_KEEP) await rm(work, { recursive: true, force: true });
 }
 
 await browser.close();
