@@ -21,6 +21,10 @@
  *
  * Writes public/assets/email/golden/showcase-{id}.gif. The still captures
  * (scripts/capture-golden-email-assets.mjs) stay as they are.
+ *
+ * After re-capturing, bump ASSET_VERSION in lib/email/templates/goldenTicket.ts:
+ * the pictures are cached for a week under their address, by browsers and by
+ * Gmail's image proxy, so replaced files otherwise keep showing the old ones.
  */
 
 import { chromium } from "playwright";
@@ -39,9 +43,14 @@ const OUT = path.join(process.cwd(), "public", "assets", "email", "golden");
 // screen without doubling the file, which a GIF feels far more than a JPEG.
 const WIDTH = 600;
 const FPS = Number(process.env.GIF_FPS || 10);
-const RECORD_SECONDS = Number(process.env.GIF_RECORD || 30);
-const MIN_LOOP_SECONDS = 4;
-const MAX_SECONDS = 12;
+// Played faster than the page. The page's demos are paced for someone
+// watching; an email is scrolled past, and a 16 second loop both reads as
+// slow there and weighs more, which on a slow connection makes a GIF crawl
+// while it loads. 1.5x keeps every step legible.
+const SPEED = Number(process.env.GIF_SPEED || 1.5);
+const RECORD_SECONDS = Number(process.env.GIF_RECORD || 36);
+const MIN_LOOP_SECONDS = 3;
+const MAX_SECONDS = 9;
 const COLOURS = 128;
 // Each demo opens on an empty card and draws itself in. The loop starts once
 // it has, so the first frame, the one Outlook shows as a still, has something
@@ -78,7 +87,20 @@ async function record(browser, url, card, dir) {
     // email card rather than on a square of the page's beige.
     await page.addStyleTag({ content: "html, body, body > div, .min-h-screen { background: #FFFFFF !important; }" });
 
+    // Everything else that animates goes, above all the globe: with no GPU its
+    // WebGL is drawn in software, which starves the page's timers and slows
+    // the demo being recorded, so the GIF came out slower than the page plays.
+    // Only the card being recorded keeps running.
     const target = page.locator(card.selector).last();
+    await target.evaluate((keep) => {
+        document.querySelectorAll("canvas, video, iframe").forEach((el) => {
+            if (!keep.contains(el)) el.remove();
+        });
+        document.querySelectorAll("[data-showcase-card]").forEach((el) => {
+            if (!el.contains(keep)) el.style.visibility = "hidden";
+        });
+    });
+
     const cdp = await page.context().newCDPSession(page);
     const frames = [];
     cdp.on("Page.screencastFrame", async ({ data, metadata, sessionId }) => {
@@ -128,12 +150,16 @@ async function findLoop(stepDir, startSeconds = START_SECONDS) {
     const files = (await readdir(stepDir)).filter((f) => f.endsWith(".png")).sort();
     const thumbs = await Promise.all(files.map((f) => thumb(path.join(stepDir, f))));
     const start = Math.min(Math.round(startSeconds * FPS), thumbs.length - 1);
+    // The FIRST return, not the closest one anywhere: a later cycle can match
+    // a hair better and would double the loop. Once under the threshold, walk
+    // on to the bottom of that dip, which is where the frames line up best.
     let best = { i: -1, d: Infinity };
     for (let i = start + MIN_LOOP_SECONDS * FPS; i < thumbs.length; i++) {
         const d = distance(thumbs[start], thumbs[i]);
+        if (best.i < 0 && d >= 2) continue;
         if (d < best.d) best = { i, d };
+        else if (best.i >= 0 && d > best.d + 1) break;
     }
-    // Under ~2 grey levels on average reads as the same picture.
     if (process.env.GIF_DEBUG) {
         const curve = [];
         for (let i = start + FPS; i < thumbs.length; i += FPS / 2) curve.push(`${((i - start) / FPS).toFixed(1)}s:${distance(thumbs[start], thumbs[Math.round(i)]).toFixed(1)}`);
@@ -161,7 +187,7 @@ for (const card of CARDS.filter((c) => !ONLY || ONLY.includes(c.id))) {
     // A steady FPS, cropped to the card and scaled to the email's size.
     execFileSync("ffmpeg", [
         "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", path.join(work, "list.txt"),
-        "-vf", `fps=${FPS},${crop},scale=${WIDTH}:-2:flags=lanczos`,
+        "-vf", `setpts=PTS/${SPEED},fps=${FPS},${crop},scale=${WIDTH}:-2:flags=lanczos`,
         path.join(steady, "s%05d.png"),
     ]);
 

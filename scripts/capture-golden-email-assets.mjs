@@ -21,6 +21,10 @@
  * ground, so the rounded corners that were transparent on the page do not
  * come out black. The icons and the seal, flat colour with edges, go out as
  * PNG with their transparency, since they sit on more than one ground.
+ *
+ * After re-capturing, bump ASSET_VERSION in lib/email/templates/goldenTicket.ts:
+ * the pictures are cached for a week under their address, by browsers and by
+ * Gmail's image proxy, so replaced files otherwise keep showing the old ones.
  */
 
 import { chromium } from "playwright";

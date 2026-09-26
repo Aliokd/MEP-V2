@@ -86,6 +86,14 @@ const GOLD_PRESS = "#9E8047";
 const CARD_TINT = "#F7F6F2";
 const TICKET_TINT = "#FFFBF0";
 
+/**
+ * Bump whenever the pictures in public/assets/email/golden are re-captured.
+ * veinote.com serves them with a week's cache, and Gmail's image proxy keeps
+ * its own copy by address, so a file replaced under the same name keeps
+ * showing the old one; a new version makes it a new address.
+ */
+const ASSET_VERSION = 2;
+
 const SHOWCASE = ["collab", "tools", "publish", "science"] as const;
 const BENEFIT_ICONS = ["lifetime", "vouchers", "events", "host", "perks"] as const;
 
@@ -151,7 +159,7 @@ export function goldenTicketEmail(
     const vars = { name, code, invites: String(invites), number: number ? String(number) : "" };
     const t = (key: string) => interpolate(tServer(locale, `email.golden_ticket.${key}`, overrides), vars);
     const benefits = tServerList(locale, "email.golden_ticket.benefits").map((line) => interpolate(line, vars));
-    const asset = (file: string) => `${assetOrigin.replace(/\/$/, "")}/assets/email/golden/${file}`;
+    const asset = (file: string) => `${assetOrigin.replace(/\/$/, "")}/assets/email/golden/${file}?v=${ASSET_VERSION}`;
     const filmUrl = `https://www.youtube.com/watch?v=${GOLDEN.videoId}`;
 
     const granted = mode === "granted";
