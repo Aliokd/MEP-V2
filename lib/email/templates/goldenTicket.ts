@@ -17,9 +17,11 @@ import { GOLDEN } from "@/app/golden/content";
  * The code sits in that card, which is what the card on the page is for.
  *
  * The page's visuals are drawn by script and SVG, and an inbox runs neither,
- * so the pictures here are captures of the page itself
- * (scripts/capture-golden-email-assets.mjs, into public/assets/email/golden).
- * Re-run it when the page changes, and deploy, for the email to follow.
+ * so the pictures here are captures of the page itself, into
+ * public/assets/email/golden: the four showcase demos as looping GIFs
+ * (scripts/capture-golden-email-animations.mjs), everything else as stills
+ * (scripts/capture-golden-email-assets.mjs). Re-run them when the page
+ * changes, and deploy, for the email to follow.
  *
  * Two modes, because the ticket reaches people at two different moments.
  * `invite` is the usual one: they have no account, the code is what makes
@@ -191,10 +193,14 @@ export function goldenTicketEmail(
         .map((line) => escapeHtml(line))
         .join("<br />");
 
+    // The four demos move, as they do on the page: looping GIFs recorded from
+    // it (scripts/capture-golden-email-animations.mjs). GIF because an inbox
+    // plays no video; Outlook on Windows shows the first frame as a still. The
+    // .jpg stills beside them stay deployed for emails already sent.
     const showcaseHtml = showcase
         .map(
             ({ id, title, body }, i) => `
-      ${picture(asset(`showcase-${id}.jpg`), title)}
+      ${picture(asset(`showcase-${id}.gif`), title)}
       <p style="margin:20px 0 8px; font-size:20px; line-height:1.3; font-weight:500; letter-spacing:-0.01em; color:${emailColors.INK};">${escapeHtml(title)}</p>
       <p style="margin:0 0 ${i === showcase.length - 1 ? 0 : 40}px; font-size:15px; line-height:1.6; color:${emailColors.MUTED};">${escapeHtml(body)}</p>`,
         )
